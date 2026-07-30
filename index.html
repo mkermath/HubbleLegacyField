@@ -1,12 +1,849 @@
 <!DOCTYPE html>
-<html>
-<head>
-	<title>modicles</title>
+<html lang="en"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dissolve — throw a file, get elevator music</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    :root {
+      --bg: #e8e0d4;
+      --bg2: #d4c8b8;
+      --ink: #3d3630;
+      --muted: #7a7068;
+      --gold: #c4a574;
+      --cream: #f5f0e8;
+      --panel: rgba(255, 252, 247, 0.72);
+    }
+
+    html, body {
+      height: 100%;
+      font-family: Georgia, "Times New Roman", serif;
+      background: linear-gradient(165deg, var(--bg) 0%, var(--bg2) 45%, #c9bfb0 100%);
+      color: var(--ink);
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .privacy {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-align: right;
+      max-width: 14rem;
+      line-height: 1.4;
+    }
+
+    .privacy strong { color: var(--ink); display: block; margin-bottom: 0.2rem; }
+
+    h1 {
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-weight: normal;
+      letter-spacing: 0.02em;
+      margin-bottom: 0.35rem;
+      text-align: center;
+    }
+
+    .tagline {
+      color: var(--muted);
+      font-size: 0.95rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      font-style: italic;
+    }
+
+    #stage {
+      position: relative;
+      width: min(92vw, 520px);
+      height: min(62vh, 420px);
+      border-radius: 4px;
+      background: var(--panel);
+      border: 1px solid rgba(196, 165, 116, 0.45);
+      box-shadow: 0 18px 50px rgba(61, 54, 48, 0.12);
+      overflow: hidden;
+    }
+
+    #drop-zone {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.25s;
+      z-index: 2;
+    }
+
+    #drop-zone.dragover {
+      background: rgba(196, 165, 116, 0.18);
+    }
+
+    #drop-zone.hidden { pointer-events: none; opacity: 0; }
+
+    .drop-icon {
+      font-size: 3rem;
+      margin-bottom: 0.75rem;
+      opacity: 0.55;
+    }
+
+    .drop-label {
+      font-size: 1.05rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .drop-hint {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    #file-input { display: none; }
+
+    #preview {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      max-width: 140px;
+      max-height: 140px;
+      border-radius: 6px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      z-index: 3;
+      pointer-events: none;
+      object-fit: contain;
+      background: white;
+      padding: 0.5rem;
+    }
+
+    #preview.file-chip {
+      width: auto;
+      height: auto;
+      max-width: none;
+      padding: 1rem 1.25rem;
+      font-size: 2.5rem;
+      background: var(--cream);
+    }
+
+    #canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 4;
+    }
+
+    #player {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      text-align: center;
+      z-index: 5;
+      background: linear-gradient(180deg, rgba(245,240,232,0.92), rgba(232,224,212,0.96));
+    }
+
+    #player.visible { display: flex; }
+
+    .now-playing {
+      font-size: 0.7rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.5rem;
+    }
+
+    #track-title {
+      font-size: 1.35rem;
+      margin-bottom: 0.4rem;
+    }
+
+    #track-meta {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+    }
+
+    #commentary {
+      font-size: 0.9rem;
+      font-style: italic;
+      color: var(--ink);
+      max-width: 28rem;
+      line-height: 1.45;
+      margin-bottom: 1rem;
+      min-height: 2.8rem;
+    }
+
+    #viz {
+      width: min(80%, 320px);
+      height: 48px;
+      margin-bottom: 1.1rem;
+      border-radius: 2px;
+      background: rgba(196, 165, 116, 0.15);
+    }
+
+    .bpm-control {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      margin-bottom: 1rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .bpm-control label {
+      min-width: 2rem;
+      text-align: right;
+    }
+
+    #bpm-slider {
+      width: min(48vw, 180px);
+      accent-color: var(--gold);
+      cursor: pointer;
+    }
+
+    #bpm-value {
+      min-width: 2.2rem;
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .controls {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 0.82rem;
+      padding: 0.45rem 0.9rem;
+      border: 1px solid rgba(61, 54, 48, 0.25);
+      background: var(--cream);
+      color: var(--ink);
+      border-radius: 2px;
+      cursor: pointer;
+    }
+
+    button:hover { background: white; }
+
+    #status {
+      position: fixed;
+      bottom: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-align: center;
+      max-width: 90vw;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 2.5rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(10px);
+      background: var(--ink);
+      color: var(--cream);
+      padding: 0.5rem 1rem;
+      border-radius: 3px;
+      font-size: 0.8rem;
+      opacity: 0;
+      transition: opacity 0.3s, transform 0.3s;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
 </head>
 <body>
-	Hello World
+  <div class="privacy">
+    <strong>Nothing stored</strong>
+    Your file lives in RAM briefly, then is wiped. No uploads. No server.
+  </div>
+
+  <h1>Dissolve</h1>
+  <p class="tagline">Throw anything. It becomes elevator music. It will not be discussed further.</p>
+
+  <div id="stage">
+    <div id="drop-zone" class="hidden">
+      <div class="drop-icon">📎</div>
+      <div class="drop-label">Drop a file here</div>
+      <div class="drop-hint">or click to browse · up to 100 MB</div>
+    </div>
+    <img id="preview" alt="" class="" style="" hidden="">📁
+    <canvas id="canvas" width="520" height="420"></canvas>
+    <div id="player" class="visible">
+      <div class="now-playing">Now playing in the lobby</div>
+      <div id="track-title">Synergy in G</div>
+      <div id="track-meta">86 BPM · G major · elevator edit</div>
+      <p id="commentary">Pixels dissolved. Only inoffensive saxophone remains.</p>
+      <canvas id="viz" width="0" height="0"></canvas>
+      <div class="bpm-control">
+        <label for="bpm-slider">BPM</label>
+        <input type="range" id="bpm-slider" min="50" max="490" step="1" value="86">
+        <span id="bpm-value">86</span>
+      </div>
+      <div class="controls">
+        <button type="button" id="btn-replay">Replay</button>
+        <button type="button" id="btn-stop">Stop</button>
+        <button type="button" id="btn-another">Throw another</button>
+      </div>
+    </div>
+  </div>
+
+  <input id="file-input" type="file">
+  <div id="status">Playing. Nothing was stored. Hash c11932bd69c3…</div>
+  <div id="toast" class="toast">File deleted. Converting to elevator music.</div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      const MAX_BYTES = 100 * 1024 * 1024;
+      const SAMPLE_BYTES = 2048;
+
+      const KEYS = ["C", "F", "Bb", "Eb", "G", "D"];
+      const MODES = ["major"];
+      const ADJECTIVES = [
+        "polished", "reassuring", "corporate", "sun-drenched", "neutral",
+        "executive", "soft-focus", "boardroom-safe", "gentle", "inoffensive"
+      ];
+      const NOUNS = [
+        "Synergy", "Horizons", "Momentum", "Clarity", "Alignment",
+        "Outlook", "Summit", "Cascade", "Portfolio", "Daybreak"
+      ];
+      const QUIPS = [
+        "High entropy detected. We've smoothed that right out.",
+        "This file had opinions. The lobby has removed them.",
+        "Converted to muzak per standard disposal protocol.",
+        "Your data has ascended to the mezzanine.",
+        "Formerly urgent. Now merely pleasant.",
+        "All sharp edges have been carpeted over.",
+        "The file is gone. Only vibes remain.",
+        "Restructured as background ambience for an elevator.",
+      ];
+
+      let audioCtx = null;
+      let activeNodes = [];
+      let vizAnim = null;
+      let lastSeed = null;
+      let lastFingerprint = null;
+      let lastMeta = null;
+      let loopTimeoutId = null;
+      let dissolveAnim = null;
+      let sessionFileRef = null;
+
+      const dropZone = document.getElementById("drop-zone");
+      const fileInput = document.getElementById("file-input");
+      const preview = document.getElementById("preview");
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      const player = document.getElementById("player");
+      const trackTitle = document.getElementById("track-title");
+      const trackMeta = document.getElementById("track-meta");
+      const commentary = document.getElementById("commentary");
+      const viz = document.getElementById("viz");
+      const vizCtx = viz.getContext("2d");
+      const statusEl = document.getElementById("status");
+      const toast = document.getElementById("toast");
+      const bpmSlider = document.getElementById("bpm-slider");
+      const bpmValue = document.getElementById("bpm-value");
+
+      function setStatus(msg) { statusEl.textContent = msg; }
+
+      function updateTrackMetaDisplay(meta, tempo) {
+        trackMeta.textContent = tempo + " BPM · " + meta.key + " · elevator edit";
+        bpmValue.textContent = String(tempo);
+        bpmSlider.value = String(tempo);
+      }
+
+      function playbackMeta() {
+        if (!lastMeta) return null;
+        return Object.assign({}, lastMeta, {
+          tempo: parseInt(bpmSlider.value, 10),
+        });
+      }
+      function showToast(msg) {
+        toast.textContent = msg;
+        toast.classList.add("show");
+        setTimeout(function () { toast.classList.remove("show"); }, 2800);
+      }
+
+      function resizeCanvas() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        viz.width = viz.clientWidth * devicePixelRatio;
+        viz.height = viz.clientHeight * devicePixelRatio;
+      }
+      window.addEventListener("resize", resizeCanvas);
+      resizeCanvas();
+
+      function hashToUint32(hex, index) {
+        const slice = hex.slice(index % (hex.length - 7), (index % (hex.length - 7)) + 8);
+        return parseInt(slice, 16) >>> 0;
+      }
+
+      function pick(arr, seed, salt) {
+        return arr[hashToUint32(seed, salt) % arr.length];
+      }
+
+      function noteFreq(note, octave) {
+        const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const flatMap = { Bb: "A#", Eb: "D#" };
+        const n = flatMap[note] || note;
+        const idx = names.indexOf(n);
+        return 440 * Math.pow(2, (idx - 9 + (octave - 4) * 12) / 12);
+      }
+
+      function majorTriad(root, octave) {
+        const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const flatMap = { Bb: "A#", Eb: "D#" };
+        const r = flatMap[root] || root;
+        const i = names.indexOf(r);
+        return [0, 4, 7].map(function (semi) {
+          const note = names[(i + semi) % 12];
+          return noteFreq(note, octave);
+        });
+      }
+
+      function entropyFromBytes(bytes) {
+        if (!bytes.length) return 0;
+        const counts = new Uint32Array(256);
+        for (let i = 0; i < bytes.length; i++) counts[bytes[i]]++;
+        let e = 0;
+        for (let i = 0; i < 256; i++) {
+          if (!counts[i]) continue;
+          const p = counts[i] / bytes.length;
+          e -= p * Math.log2(p);
+        }
+        return Math.round(e * 10) / 10;
+      }
+
+      async function fingerprintFile(file) {
+        const head = new Uint8Array(await file.slice(0, SAMPLE_BYTES).arrayBuffer());
+        const tailSlice = file.size > SAMPLE_BYTES
+          ? file.slice(Math.max(0, file.size - SAMPLE_BYTES))
+          : file.slice(0, 0);
+        const tail = new Uint8Array(await tailSlice.arrayBuffer());
+
+        let hashHex;
+        if (file.size <= 16 * 1024 * 1024) {
+          const full = await file.arrayBuffer();
+          const digest = await crypto.subtle.digest("SHA-256", full);
+          hashHex = Array.from(new Uint8Array(digest)).map(function (b) {
+            return b.toString(16).padStart(2, "0");
+          }).join("");
+        } else {
+          const combo = new Uint8Array(head.length + tail.length + 8);
+          combo.set(head, 0);
+          combo.set(tail, head.length);
+          new DataView(combo.buffer).setBigUint64(head.length + tail.length, BigInt(file.size));
+          const digest = await crypto.subtle.digest("SHA-256", combo);
+          hashHex = Array.from(new Uint8Array(digest)).map(function (b) {
+            return b.toString(16).padStart(2, "0");
+          }).join("") + "-partial";
+        }
+
+        let textSample = "";
+        try {
+          textSample = new TextDecoder("utf-8", { fatal: false })
+            .decode(head.slice(0, 512))
+            .replace(/[\x00-\x1f\x7f-\x9f]/g, " ")
+            .trim()
+            .slice(0, 120);
+        } catch (_) {}
+
+        return {
+          filename: file.name,
+          type: file.type || "application/octet-stream",
+          size_bytes: file.size,
+          hash: hashHex,
+          hash_prefix: hashHex.slice(0, 12),
+          entropy: entropyFromBytes(head),
+          text_sample: textSample,
+        };
+      }
+
+      function wipeFileRef() {
+        if (sessionFileRef) {
+          sessionFileRef = null;
+        }
+        if (preview.src && preview.src.startsWith("blob:")) {
+          URL.revokeObjectURL(preview.src);
+        }
+        preview.removeAttribute("src");
+        preview.hidden = true;
+      }
+
+      function iconForType(type, name) {
+        if (type.startsWith("image/")) return null;
+        const ext = (name.split(".").pop() || "").toLowerCase();
+        const map = {
+          pdf: "📄", zip: "🗜️", txt: "📝", md: "📝", json: "📋",
+          js: "📜", ts: "📜", py: "🐍", exe: "⚙️", mp3: "🎵", mp4: "🎬",
+        };
+        return map[ext] || "📁";
+      }
+
+      function showPreview(file) {
+        preview.hidden = false;
+        preview.classList.remove("file-chip");
+        if (file.type.startsWith("image/")) {
+          preview.src = URL.createObjectURL(file);
+        } else {
+          preview.classList.add("file-chip");
+          preview.textContent = iconForType(file.type, file.name);
+        }
+      }
+
+      function generateLinerNotes(fp) {
+        const seed = fp.hash;
+        const key = pick(KEYS, seed, 1);
+        const tempo = 72 + (hashToUint32(seed, 2) % 25);
+        const title = pick(NOUNS, seed, 3) + " in " + key + (key === "Bb" ? " Flat" : key === "Eb" ? " Flat" : "");
+        const adj = pick(ADJECTIVES, seed, 4);
+        let quip = pick(QUIPS, seed, 5);
+
+        if (fp.type.includes("pdf")) quip = "A " + adj + " PDF, now lobby-compliant.";
+        else if (fp.type.startsWith("image/")) quip = "Pixels dissolved. Only " + adj + " saxophone remains.";
+        else if (fp.filename.match(/\.(zip|tar|gz|7z)$/i)) quip = "Archive unpacked directly into smooth jazz.";
+        else if (fp.entropy > 7.5) quip = "Chaotic binary, " + fp.entropy + " entropy — neutralized.";
+        else if (fp.text_sample.length > 20) quip = "It whispered \"" + fp.text_sample.slice(0, 40) + "…\" We chose not to listen.";
+
+        return {
+          title: title,
+          tempo: tempo,
+          key: key + " major",
+          mood: adj + " elevator",
+          commentary: quip,
+        };
+      }
+
+      function stopAudio() {
+        if (loopTimeoutId) {
+          clearTimeout(loopTimeoutId);
+          loopTimeoutId = null;
+        }
+        activeNodes.forEach(function (n) {
+          try { n.stop && n.stop(); n.disconnect && n.disconnect(); } catch (_) {}
+        });
+        activeNodes = [];
+        if (vizAnim) cancelAnimationFrame(vizAnim);
+        vizAnim = null;
+      }
+
+      function ensureAudio() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        return audioCtx;
+      }
+
+      function playMuzak(seed, meta) {
+        stopAudio();
+        const ac = ensureAudio();
+        if (ac.state === "suspended") ac.resume();
+
+        const root = pick(KEYS, seed, 10);
+        const tempo = meta.tempo;
+        const beat = 60 / tempo;
+
+        // I – vi – IV – V in semitones
+        const degrees = [0, 9, 5, 7];
+        const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const flatMap = { Bb: "A#", Eb: "D#" };
+        const r = flatMap[root] || root;
+        const rootIdx = names.indexOf(r);
+
+        const master = ac.createGain();
+        master.gain.value = 0.22;
+        master.connect(ac.destination);
+        activeNodes.push(master);
+
+        const analyser = ac.createAnalyser();
+        analyser.fftSize = 256;
+        master.connect(analyser);
+
+        const chords = degrees.map(function (semi) {
+          const chordRoot = names[(rootIdx + semi) % 12];
+          return majorTriad(chordRoot, 3);
+        });
+
+        const barDuration = beat * 4;
+        const totalBars = 8;
+        const start = ac.currentTime + 0.05;
+
+        chords.forEach(function (freqs, bar) {
+          const t0 = start + bar * barDuration;
+          freqs.forEach(function (freq, i) {
+            const osc = ac.createOscillator();
+            const gain = ac.createGain();
+            osc.type = i === 0 ? "triangle" : "sine";
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.0001, t0);
+            gain.gain.linearRampToValueAtTime(0.08 / freqs.length, t0 + 0.08);
+            gain.gain.setValueAtTime(0.07 / freqs.length, t0 + barDuration - 0.2);
+            gain.gain.linearRampToValueAtTime(0.0001, t0 + barDuration);
+            osc.connect(gain);
+            gain.connect(master);
+            osc.start(t0);
+            osc.stop(t0 + barDuration + 0.05);
+            activeNodes.push(osc, gain);
+          });
+        });
+
+        // Soft brush hi-hat-ish noise bursts
+        for (let bar = 0; bar < totalBars; bar++) {
+          for (let step = 0; step < 8; step++) {
+            if (step % 2 === 1 && hashToUint32(seed, bar * 8 + step) % 3 === 0) continue;
+            const t = start + bar * barDuration + step * (beat / 2);
+            const bufferSize = ac.sampleRate * 0.04;
+            const buffer = ac.createBuffer(1, bufferSize, ac.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+            const src = ac.createBufferSource();
+            src.buffer = buffer;
+            const g = ac.createGain();
+            g.gain.value = 0.025;
+            src.connect(g);
+            g.connect(master);
+            src.start(t);
+            activeNodes.push(src, g);
+          }
+        }
+
+        // Bass root on beats
+        for (let bar = 0; bar < totalBars; bar++) {
+          const t = start + bar * barDuration;
+          const osc = ac.createOscillator();
+          const g = ac.createGain();
+          osc.type = "sine";
+          osc.frequency.value = noteFreq(names[rootIdx], 2);
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.linearRampToValueAtTime(0.12, t + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.001, t + beat * 1.8);
+          osc.connect(g);
+          g.connect(master);
+          osc.start(t);
+          osc.stop(t + beat * 2);
+          activeNodes.push(osc, g);
+        }
+
+        startVisualizer(analyser);
+        loopTimeoutId = setTimeout(function () {
+          loopTimeoutId = null;
+          if (lastSeed === seed && lastMeta) playMuzak(seed, playbackMeta());
+        }, totalBars * barDuration * 1000 - 200);
+      }
+
+      function startVisualizer(analyser) {
+        const buf = new Uint8Array(analyser.frequencyBinCount);
+        function draw() {
+          vizAnim = requestAnimationFrame(draw);
+          analyser.getByteFrequencyData(buf);
+          const w = viz.width;
+          const h = viz.height;
+          vizCtx.clearRect(0, 0, w, h);
+          vizCtx.fillStyle = "#c4a574";
+          const bars = 32;
+          for (let i = 0; i < bars; i++) {
+            const v = buf[i * 2] / 255;
+            const bh = v * h * 0.85;
+            vizCtx.globalAlpha = 0.35 + v * 0.5;
+            vizCtx.fillRect((w / bars) * i + 2, h - bh, w / bars - 4, bh);
+          }
+        }
+        draw();
+      }
+
+      // --- Dissolve particles ---
+      let particles = [];
+
+      function spawnParticles(w, h, color) {
+        particles = [];
+        const n = 120;
+        for (let i = 0; i < n; i++) {
+          particles.push({
+            x: w / 2 + (Math.random() - 0.5) * 80,
+            y: h / 2 + (Math.random() - 0.5) * 80,
+            vx: (Math.random() - 0.5) * 4,
+            vy: (Math.random() - 0.5) * 4 - 1.5,
+            life: 1,
+            size: 2 + Math.random() * 5,
+            color: color,
+          });
+        }
+      }
+
+      function runDissolve(onDone) {
+        const w = canvas.width;
+        const h = canvas.height;
+        spawnParticles(w, h, "#c4a574");
+        let frame = 0;
+        const maxFrames = 90;
+
+        if (dissolveAnim) cancelAnimationFrame(dissolveAnim);
+
+        function tick() {
+          frame++;
+          ctx.clearRect(0, 0, w, h);
+          let alive = 0;
+          particles.forEach(function (p) {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.02;
+            p.life -= 0.012;
+            if (p.life <= 0) return;
+            alive++;
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+            ctx.fill();
+          });
+
+          const previewEl = preview;
+          if (previewEl && !previewEl.hidden) {
+            const scale = Math.max(0, 1 - frame / (maxFrames * 0.85));
+            const op = Math.max(0, 1 - frame / (maxFrames * 0.7));
+            previewEl.style.transform = "translate(-50%, -50%) scale(" + scale + ")";
+            previewEl.style.opacity = op;
+          }
+
+          if (frame < maxFrames && alive > 0) {
+            dissolveAnim = requestAnimationFrame(tick);
+          } else {
+            ctx.clearRect(0, 0, w, h);
+            previewEl.hidden = true;
+            previewEl.style.transform = "";
+            previewEl.style.opacity = "";
+            onDone();
+          }
+        }
+        tick();
+      }
+
+      async function handleFile(file) {
+        if (!file) return;
+        if (file.size > MAX_BYTES) {
+          showToast("Max 100 MB for this demo.");
+          return;
+        }
+
+        stopAudio();
+        player.classList.remove("visible");
+        dropZone.classList.remove("hidden");
+        wipeFileRef();
+
+        sessionFileRef = file;
+        showPreview(file);
+        setStatus("Reading file into memory…");
+
+        let fp;
+        try {
+          fp = await fingerprintFile(file);
+        } catch (err) {
+          showToast("Could not read file.");
+          setStatus("Error.");
+          wipeFileRef();
+          return;
+        }
+
+        // Physical delete: drop reference immediately after fingerprint
+        sessionFileRef = null;
+        setStatus("File wiped from memory. Dissolving…");
+        showToast("File deleted. Converting to elevator music.");
+
+        const meta = generateLinerNotes(fp);
+        lastSeed = fp.hash;
+        lastFingerprint = fp;
+        lastMeta = meta;
+
+        dropZone.classList.add("hidden");
+
+        runDissolve(function () {
+          wipeFileRef();
+          trackTitle.textContent = meta.title;
+          updateTrackMetaDisplay(meta, meta.tempo);
+          commentary.textContent = meta.commentary;
+          player.classList.add("visible");
+          playMuzak(fp.hash, meta);
+          setStatus("Playing. Nothing was stored. Hash " + fp.hash_prefix + "…");
+        });
+      }
+
+      // --- Events ---
+      dropZone.addEventListener("click", function () { fileInput.click(); });
+      fileInput.addEventListener("change", function () {
+        if (fileInput.files[0]) handleFile(fileInput.files[0]);
+        fileInput.value = "";
+      });
+
+      ["dragenter", "dragover"].forEach(function (ev) {
+        dropZone.addEventListener(ev, function (e) {
+          e.preventDefault();
+          dropZone.classList.add("dragover");
+        });
+      });
+      ["dragleave", "drop"].forEach(function (ev) {
+        dropZone.addEventListener(ev, function (e) {
+          e.preventDefault();
+          dropZone.classList.remove("dragover");
+        });
+      });
+      dropZone.addEventListener("drop", function (e) {
+        const f = e.dataTransfer.files[0];
+        if (f) handleFile(f);
+      });
+
+      document.getElementById("btn-replay").addEventListener("click", function () {
+        if (lastSeed && lastMeta) playMuzak(lastSeed, playbackMeta());
+      });
+      document.getElementById("btn-stop").addEventListener("click", stopAudio);
+      document.getElementById("btn-another").addEventListener("click", function () {
+        stopAudio();
+        player.classList.remove("visible");
+        dropZone.classList.remove("hidden");
+        wipeFileRef();
+        lastSeed = null;
+        lastFingerprint = null;
+        lastMeta = null;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        setStatus("Ready.");
+      });
+
+      bpmSlider.addEventListener("input", function () {
+        const tempo = parseInt(bpmSlider.value, 10);
+        bpmValue.textContent = String(tempo);
+        if (lastMeta) {
+          trackMeta.textContent = tempo + " BPM · " + lastMeta.key + " · elevator edit";
+        }
+      });
+
+      bpmSlider.addEventListener("change", function () {
+        if (lastSeed && lastMeta && player.classList.contains("visible")) {
+          playMuzak(lastSeed, playbackMeta());
+        }
+      });
+    })();
+  </script>
 
 
-</body>
-</html>
+</body></html>
