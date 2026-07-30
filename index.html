@@ -208,6 +208,35 @@
       text-align: right;
     }
 
+    .progression-control {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      margin-bottom: 1rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .progression-control label {
+      min-width: 2rem;
+      text-align: right;
+    }
+
+    #progression-select {
+      font-family: inherit;
+      font-size: 0.82rem;
+      padding: 0.3rem 0.5rem;
+      border: 1px solid rgba(61, 54, 48, 0.25);
+      background: var(--cream);
+      color: var(--ink);
+      border-radius: 2px;
+      cursor: pointer;
+    }
+
+    #progression-select:hover {
+      background: white;
+    }
+
     #bpm-slider {
       width: min(48vw, 180px);
       accent-color: var(--gold);
@@ -271,6 +300,74 @@
       opacity: 1;
       transform: translateX(-50%) translateY(0);
     }
+
+    .instruments {
+      display: flex;
+      gap: 4rem;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .instrument {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .instrument-name {
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    .volume-meter {
+      width: 40px;
+      height: 60px;
+      background: rgba(196, 165, 116, 0.1);
+      border-radius: 2px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .volume-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 0%;
+      background: linear-gradient(to top, var(--gold), #d4b896);
+      transition: height 0.05s ease-out;
+      border-radius: 0 0 2px 2px;
+    }
+
+    .instrument-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.65rem;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .toggle-label input[type="checkbox"] {
+      cursor: pointer;
+    }
+
+    .gain-slider {
+      width: 50px;
+      height: 4px;
+      accent-color: var(--gold);
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -283,23 +380,77 @@
   <p class="tagline">Throw anything. It becomes elevator music. It will not be discussed further.</p>
 
   <div id="stage">
-    <div id="drop-zone" class="hidden">
+    <div id="drop-zone">
       <div class="drop-icon">📎</div>
       <div class="drop-label">Drop a file here</div>
       <div class="drop-hint">or click to browse · up to 100 MB</div>
     </div>
     <img id="preview" alt="" class="" style="" hidden="">📁
     <canvas id="canvas" width="520" height="420"></canvas>
-    <div id="player" class="visible">
+    <div id="player">
       <div class="now-playing">Now playing in the lobby</div>
       <div id="track-title">Synergy in G</div>
       <div id="track-meta">86 BPM · G major · elevator edit</div>
       <p id="commentary">Pixels dissolved. Only inoffensive saxophone remains.</p>
       <canvas id="viz" width="0" height="0"></canvas>
+      <div class="instruments">
+        <div class="instrument">
+          <div class="instrument-name">Chords</div>
+          <div class="volume-meter">
+            <div class="volume-bar" id="vol-chords"></div>
+          </div>
+          <div class="instrument-controls">
+            <label class="toggle-label">
+              <input type="checkbox" id="enable-chords" checked>
+              <span>On</span>
+            </label>
+            <input type="range" class="gain-slider" id="gain-chords" min="0" max="200" value="100">
+          </div>
+        </div>
+        <div class="instrument">
+          <div class="instrument-name">Hi-Hats</div>
+          <div class="volume-meter">
+            <div class="volume-bar" id="vol-hihats"></div>
+          </div>
+          <div class="instrument-controls">
+            <label class="toggle-label">
+              <input type="checkbox" id="enable-hihats" checked>
+              <span>On</span>
+            </label>
+            <input type="range" class="gain-slider" id="gain-hihats" min="0" max="200" value="100">
+          </div>
+        </div>
+        <div class="instrument">
+          <div class="instrument-name">Bass</div>
+          <div class="volume-meter">
+            <div class="volume-bar" id="vol-bass"></div>
+          </div>
+          <div class="instrument-controls">
+            <label class="toggle-label">
+              <input type="checkbox" id="enable-bass" checked>
+              <span>On</span>
+            </label>
+            <input type="range" class="gain-slider" id="gain-bass" min="0" max="200" value="100">
+          </div>
+        </div>
+      </div>
       <div class="bpm-control">
         <label for="bpm-slider">BPM</label>
         <input type="range" id="bpm-slider" min="50" max="490" step="1" value="86">
         <span id="bpm-value">86</span>
+      </div>
+      <div class="progression-control">
+        <label for="progression-select">Progression</label>
+        <select id="progression-select">
+          <option value="i-vi-iv-v">I – vi – IV – V</option>
+          <option value="i-iv-v-iv">I – IV – V – IV</option>
+          <option value="i-v-vi-iii">I – V – vi – iii</option>
+          <option value="i-ii-v-i">I – ii – V – I</option>
+          <option value="i-vi-ii-v">I – vi – ii – V</option>
+          <option value="descending">Descending Bass</option>
+          <option value="ascending">Ascending</option>
+          <option value="random">Random Walk</option>
+        </select>
       </div>
       <div class="controls">
         <button type="button" id="btn-replay">Replay</button>
@@ -310,7 +461,7 @@
   </div>
 
   <input id="file-input" type="file">
-  <div id="status">Playing. Nothing was stored. Hash c11932bd69c3…</div>
+  <div id="status">Ready.</div>
   <div id="toast" class="toast">File deleted. Converting to elevator music.</div>
 
   <script>
@@ -322,6 +473,16 @@
 
       const KEYS = ["C", "F", "Bb", "Eb", "G", "D"];
       const MODES = ["major"];
+      const PROGRESSIONS = {
+        "i-vi-iv-v": { name: "I – vi – IV – V", degrees: [0, 9, 5, 7] },
+        "i-iv-v-iv": { name: "I – IV – V – IV", degrees: [0, 5, 7, 5] },
+        "i-v-vi-iii": { name: "I – V – vi – iii", degrees: [0, 7, 9, 4] },
+        "i-ii-v-i": { name: "I – ii – V – I", degrees: [0, 2, 7, 0] },
+        "i-vi-ii-v": { name: "I – vi – ii – V", degrees: [0, 9, 2, 7] },
+        "descending": { name: "Descending Bass", degrees: [0, 7, 5, 3] },
+        "ascending": { name: "Ascending", degrees: [0, 2, 4, 5] },
+        "random": { name: "Random Walk", degrees: null },
+      };
       const ADJECTIVES = [
         "polished", "reassuring", "corporate", "sun-drenched", "neutral",
         "executive", "soft-focus", "boardroom-safe", "gentle", "inoffensive"
@@ -350,6 +511,11 @@
       let loopTimeoutId = null;
       let dissolveAnim = null;
       let sessionFileRef = null;
+      let instrumentAnalysers = { chords: null, hihats: null, bass: null };
+      let meterAnim = null;
+      let instrumentEnabled = { chords: true, hihats: true, bass: true };
+      let instrumentGain = { chords: 1, hihats: 1, bass: 1 };
+      let selectedProgression = "i-vi-iv-v";
 
       const dropZone = document.getElementById("drop-zone");
       const fileInput = document.getElementById("file-input");
@@ -366,6 +532,16 @@
       const toast = document.getElementById("toast");
       const bpmSlider = document.getElementById("bpm-slider");
       const bpmValue = document.getElementById("bpm-value");
+      const volChords = document.getElementById("vol-chords");
+      const volHihats = document.getElementById("vol-hihats");
+      const volBass = document.getElementById("vol-bass");
+      const enableChords = document.getElementById("enable-chords");
+      const enableHihats = document.getElementById("enable-hihats");
+      const enableBass = document.getElementById("enable-bass");
+      const gainChords = document.getElementById("gain-chords");
+      const gainHihats = document.getElementById("gain-hihats");
+      const gainBass = document.getElementById("gain-bass");
+      const progressionSelect = document.getElementById("progression-select");
 
       function setStatus(msg) { statusEl.textContent = msg; }
 
@@ -549,6 +725,12 @@
         activeNodes = [];
         if (vizAnim) cancelAnimationFrame(vizAnim);
         vizAnim = null;
+        if (meterAnim) cancelAnimationFrame(meterAnim);
+        meterAnim = null;
+        instrumentAnalysers = { chords: null, hihats: null, bass: null };
+        volChords.style.height = "0%";
+        volHihats.style.height = "0%";
+        volBass.style.height = "0%";
       }
 
       function ensureAudio() {
@@ -565,15 +747,26 @@
         const tempo = meta.tempo;
         const beat = 60 / tempo;
 
-        // I – vi – IV – V in semitones
-        const degrees = [0, 9, 5, 7];
+        // Get selected progression degrees
+        const prog = PROGRESSIONS[selectedProgression];
+        let degrees;
+        if (prog.degrees === null) {
+          // Random walk: generate random degrees
+          degrees = [];
+          for (let i = 0; i < 4; i++) {
+            degrees.push(hashToUint32(seed, 100 + i) % 12);
+          }
+        } else {
+          degrees = prog.degrees;
+        }
+
         const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
         const flatMap = { Bb: "A#", Eb: "D#" };
         const r = flatMap[root] || root;
         const rootIdx = names.indexOf(r);
 
         const master = ac.createGain();
-        master.gain.value = 0.22;
+        master.gain.value = 0.8;
         master.connect(ac.destination);
         activeNodes.push(master);
 
@@ -581,39 +774,76 @@
         analyser.fftSize = 256;
         master.connect(analyser);
 
+        // Create separate gain nodes and analysers for each instrument
+        const chordsGain = ac.createGain();
+        chordsGain.gain.value = instrumentEnabled.chords ? 2.0 * instrumentGain.chords : 0;
+        chordsGain.connect(master);
+        activeNodes.push(chordsGain);
+
+        const chordsAnalyser = ac.createAnalyser();
+        chordsAnalyser.fftSize = 256;
+        chordsGain.connect(chordsAnalyser);
+        instrumentAnalysers.chords = chordsAnalyser;
+
+        const hihatsGain = ac.createGain();
+        hihatsGain.gain.value = instrumentEnabled.hihats ? 1.5 * instrumentGain.hihats : 0;
+        hihatsGain.connect(master);
+        activeNodes.push(hihatsGain);
+
+        const hihatsAnalyser = ac.createAnalyser();
+        hihatsAnalyser.fftSize = 256;
+        hihatsGain.connect(hihatsAnalyser);
+        instrumentAnalysers.hihats = hihatsAnalyser;
+
+        const bassGain = ac.createGain();
+        bassGain.gain.value = instrumentEnabled.bass ? 2.5 * instrumentGain.bass : 0;
+        bassGain.connect(master);
+        activeNodes.push(bassGain);
+
+        const bassAnalyser = ac.createAnalyser();
+        bassAnalyser.fftSize = 256;
+        bassGain.connect(bassAnalyser);
+        instrumentAnalysers.bass = bassAnalyser;
+
         const chords = degrees.map(function (semi) {
           const chordRoot = names[(rootIdx + semi) % 12];
-          return majorTriad(chordRoot, 3);
+          return [...majorTriad(chordRoot, 3), ...majorTriad(chordRoot, 4)]; // Both octaves
         });
 
         const barDuration = beat * 4;
         const totalBars = 8;
         const start = ac.currentTime + 0.05;
 
-        chords.forEach(function (freqs, bar) {
-          const t0 = start + bar * barDuration;
-          freqs.forEach(function (freq, i) {
-            const osc = ac.createOscillator();
-            const gain = ac.createGain();
-            osc.type = i === 0 ? "triangle" : "sine";
-            osc.frequency.value = freq;
-            gain.gain.setValueAtTime(0.0001, t0);
-            gain.gain.linearRampToValueAtTime(0.08 / freqs.length, t0 + 0.08);
-            gain.gain.setValueAtTime(0.07 / freqs.length, t0 + barDuration - 0.2);
-            gain.gain.linearRampToValueAtTime(0.0001, t0 + barDuration);
-            osc.connect(gain);
-            gain.connect(master);
-            osc.start(t0);
-            osc.stop(t0 + barDuration + 0.05);
-            activeNodes.push(osc, gain);
-          });
-        });
+        if (instrumentEnabled.chords) {
+          // Chords now play on sparse beats 1 and 3 (swapped with hi-hats)
+          for (let bar = 0; bar < totalBars; bar++) {
+            for (let step = 0; step < 8; step++) {
+              if (step % 4 !== 0) continue;
+              if (hashToUint32(seed, bar * 8 + step) % 3 === 0) continue;
+              const t = start + bar * barDuration + step * (beat / 2);
+              const chordIdx = bar % chords.length;
+              chords[chordIdx].forEach(function (freq, i) {
+                const osc = ac.createOscillator();
+                const gain = ac.createGain();
+                osc.type = i === 0 ? "triangle" : "sine";
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.0001, t);
+                gain.gain.linearRampToValueAtTime(0.08 / chords[chordIdx].length, t + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + beat * 0.8);
+                osc.connect(gain);
+                gain.connect(chordsGain);
+                osc.start(t);
+                osc.stop(t + beat);
+                activeNodes.push(osc, gain);
+              });
+            }
+          }
+        }
 
-        // Soft brush hi-hat-ish noise bursts
-        for (let bar = 0; bar < totalBars; bar++) {
-          for (let step = 0; step < 8; step++) {
-            if (step % 2 === 1 && hashToUint32(seed, bar * 8 + step) % 3 === 0) continue;
-            const t = start + bar * barDuration + step * (beat / 2);
+        // Hi-hats now play sustained throughout each bar (swapped with chords)
+        if (instrumentEnabled.hihats) {
+          for (let bar = 0; bar < totalBars; bar++) {
+            const t0 = start + bar * barDuration;
             const bufferSize = ac.sampleRate * 0.04;
             const buffer = ac.createBuffer(1, bufferSize, ac.sampleRate);
             const data = buffer.getChannelData(0);
@@ -621,32 +851,39 @@
             const src = ac.createBufferSource();
             src.buffer = buffer;
             const g = ac.createGain();
-            g.gain.value = 0.025;
+            g.gain.setValueAtTime(0.0001, t0);
+            g.gain.linearRampToValueAtTime(0.015, t0 + 0.05);
+            g.gain.setValueAtTime(0.012, t0 + barDuration - 0.05);
+            g.gain.linearRampToValueAtTime(0.0001, t0 + barDuration);
             src.connect(g);
-            g.connect(master);
-            src.start(t);
+            g.connect(hihatsGain);
+            src.start(t0);
+            src.stop(t0 + barDuration + 0.05);
             activeNodes.push(src, g);
           }
         }
 
         // Bass root on beats
-        for (let bar = 0; bar < totalBars; bar++) {
-          const t = start + bar * barDuration;
-          const osc = ac.createOscillator();
-          const g = ac.createGain();
-          osc.type = "sine";
-          osc.frequency.value = noteFreq(names[rootIdx], 2);
-          g.gain.setValueAtTime(0.0001, t);
-          g.gain.linearRampToValueAtTime(0.12, t + 0.02);
-          g.gain.exponentialRampToValueAtTime(0.001, t + beat * 1.8);
-          osc.connect(g);
-          g.connect(master);
-          osc.start(t);
-          osc.stop(t + beat * 2);
-          activeNodes.push(osc, g);
+        if (instrumentEnabled.bass) {
+          for (let bar = 0; bar < totalBars; bar++) {
+            const t = start + bar * barDuration;
+            const osc = ac.createOscillator();
+            const g = ac.createGain();
+            osc.type = "sine";
+            osc.frequency.value = noteFreq(names[rootIdx], 2);
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.linearRampToValueAtTime(0.12, t + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.001, t + beat * 1.8);
+            osc.connect(g);
+            g.connect(bassGain);
+            osc.start(t);
+            osc.stop(t + beat * 2);
+            activeNodes.push(osc, g);
+          }
         }
 
         startVisualizer(analyser);
+        startInstrumentMeters();
         loopTimeoutId = setTimeout(function () {
           loopTimeoutId = null;
           if (lastSeed === seed && lastMeta) playMuzak(seed, playbackMeta());
@@ -669,6 +906,34 @@
             vizCtx.globalAlpha = 0.35 + v * 0.5;
             vizCtx.fillRect((w / bars) * i + 2, h - bh, w / bars - 4, bh);
           }
+        }
+        draw();
+      }
+
+      function startInstrumentMeters() {
+        const chordsBuf = new Uint8Array(instrumentAnalysers.chords.frequencyBinCount);
+        const hihatsBuf = new Uint8Array(instrumentAnalysers.hihats.frequencyBinCount);
+        const bassBuf = new Uint8Array(instrumentAnalysers.bass.frequencyBinCount);
+
+        function draw() {
+          meterAnim = requestAnimationFrame(draw);
+
+          instrumentAnalysers.chords.getByteFrequencyData(chordsBuf);
+          instrumentAnalysers.hihats.getByteFrequencyData(hihatsBuf);
+          instrumentAnalysers.bass.getByteFrequencyData(bassBuf);
+
+          function getLevel(buf) {
+            let sum = 0;
+            for (let i = 0; i < buf.length; i++) {
+              sum += buf[i] * buf[i];
+            }
+            const rms = Math.sqrt(sum / buf.length);
+            return Math.min(100, (rms / 255) * 300);
+          }
+
+          volChords.style.height = getLevel(chordsBuf) + "%";
+          volHihats.style.height = getLevel(hihatsBuf) + "%";
+          volBass.style.height = getLevel(bassBuf) + "%";
         }
         draw();
       }
@@ -838,6 +1103,45 @@
       });
 
       bpmSlider.addEventListener("change", function () {
+        if (lastSeed && lastMeta && player.classList.contains("visible")) {
+          playMuzak(lastSeed, playbackMeta());
+        }
+      });
+
+      // Instrument enable toggles
+      enableChords.addEventListener("change", function () {
+        instrumentEnabled.chords = this.checked;
+        if (lastSeed && lastMeta && player.classList.contains("visible")) {
+          playMuzak(lastSeed, playbackMeta());
+        }
+      });
+      enableHihats.addEventListener("change", function () {
+        instrumentEnabled.hihats = this.checked;
+        if (lastSeed && lastMeta && player.classList.contains("visible")) {
+          playMuzak(lastSeed, playbackMeta());
+        }
+      });
+      enableBass.addEventListener("change", function () {
+        instrumentEnabled.bass = this.checked;
+        if (lastSeed && lastMeta && player.classList.contains("visible")) {
+          playMuzak(lastSeed, playbackMeta());
+        }
+      });
+
+      // Instrument gain sliders
+      gainChords.addEventListener("input", function () {
+        instrumentGain.chords = this.value / 100;
+      });
+      gainHihats.addEventListener("input", function () {
+        instrumentGain.hihats = this.value / 100;
+      });
+      gainBass.addEventListener("input", function () {
+        instrumentGain.bass = this.value / 100;
+      });
+
+      // Progression selector
+      progressionSelect.addEventListener("change", function () {
+        selectedProgression = this.value;
         if (lastSeed && lastMeta && player.classList.contains("visible")) {
           playMuzak(lastSeed, playbackMeta());
         }
