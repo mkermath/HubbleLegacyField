@@ -6,8 +6,58 @@
     <title>Crochet Pattern Loom</title>
     <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3-geo@3.1.1/dist/d3-geo.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.185.1/examples/js/controls/OrbitControls.js"></script>
+        <script>
+            (function(){
+                function loadScript(url){
+                    return new Promise((resolve, reject) => {
+                        const s = document.createElement('script');
+                        s.src = url;
+                        s.async = true;
+                        s.onload = () => resolve(url);
+                        s.onerror = () => reject(url);
+                        document.head.appendChild(s);
+                    });
+                }
+
+                const threeUrls = [
+                    'https://unpkg.com/three@0.185.1/build/three.min.js',
+                    'https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.min.js'
+                ];
+
+                const controlsUrls = [
+                    'https://unpkg.com/three@0.185.1/examples/js/controls/OrbitControls.js',
+                    'https://cdn.jsdelivr.net/npm/three@0.185.1/examples/js/controls/OrbitControls.js'
+                ];
+
+                async function ensureThree(){
+                    for(const u of threeUrls){
+                        try{
+                            await loadScript(u);
+                            if(window.THREE) return true;
+                        }catch(e){ /* try next */ }
+                    }
+                    return false;
+                }
+
+                async function ensureControls(){
+                    for(const u of controlsUrls){
+                        try{
+                            await loadScript(u);
+                            if(window.THREE && window.THREE.OrbitControls) return true;
+                        }catch(e){ /* try next */ }
+                    }
+                    return false;
+                }
+
+                window.__loadThreeAndControls = async function(){
+                    const okThree = await ensureThree();
+                    if(!okThree) console.error('Failed to load Three.js from CDNs');
+                    const okControls = await ensureControls();
+                    if(!okControls) console.warn('OrbitControls not loaded; camera controls may be unavailable');
+                    return okThree;
+                };
+            })();
+        </script>
     <style>
         * {
             margin: 0;
@@ -627,8 +677,26 @@
             update3DFlower();
         };
         
-        // Initial render
-        renderPattern();
+        // Initial render — wait for Three.js + controls to load, then render
+        (async function(){
+            const ok = window.__loadThreeAndControls ? await window.__loadThreeAndControls() : true;
+            if(!ok){
+                // If Three failed, still render 2D SVG view and warn
+                console.warn('Three.js failed to load; 3D visualization disabled.');
+                originalRenderPattern();
+                return;
+            }
+
+            // Controls script may attach to THREE.OrbitControls; if not, fallback to minimal stub
+            if(window.THREE && !window.THREE.OrbitControls){
+                // try attaching from global if example exports differently
+                if(window.OrbitControls && typeof window.OrbitControls === 'function'){
+                    window.THREE.OrbitControls = window.OrbitControls;
+                }
+            }
+
+            renderPattern();
+        })();
     </script>
 
 
