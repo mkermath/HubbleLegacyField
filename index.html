@@ -182,11 +182,11 @@
 <body>
     <div id="three-container"><canvas style="display: block; width: 1920px; height: 955px;" width="1920" height="955"></canvas></div>
     <div class="input-overlay">
-        <textarea id="patternInput" rows="4" placeholder="Enter pattern (space-separated): ch sc dc tr..." style="height: 243px;">sl ch sl ch sl ch sl ch sl ch sl ch sl ch</textarea>
+        <textarea id="patternInput" rows="4" placeholder="Enter pattern (space-separated): ch sc dc tr..." style="height: 243px;">ch dc tr sc sl hdc ch dc tr sc sl hdc ch dc tr sc sl hdc</textarea>
         <div style="display: flex; gap: 10px; margin-top: 10px;">
             <div style="flex: 1;">
                 <label style="font-size: 12px; font-weight: 600; color: #555;">Layers:</label>
-                <input type="number" id="iterations" value="80" min="1" max="10" style="margin-bottom: 0;">
+                <input type="number" id="iterations" value="40" min="1" max="100" style="margin-bottom: 0;">
             </div>
         </div>
         <button onclick="renderPattern()">Render Pattern</button>
