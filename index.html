@@ -1,890 +1,1250 @@
 <!DOCTYPE html>
-<html lang="en"><head>
-<meta http-equiv="content-type" content="text/html; charset=UTF-8">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crochet Pattern Loom</title>
-    <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/d3-geo@3.1.1/dist/d3-geo.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-        <script>
-            (function(){
-                function loadScript(url){
-                    return new Promise((resolve, reject) => {
-                        const s = document.createElement('script');
-                        s.src = url;
-                        s.async = true;
-                        s.onload = () => resolve(url);
-                        s.onerror = () => reject(url);
-                        document.head.appendChild(s);
-                    });
-                }
-
-                const threeUrls = [
-                    'https://unpkg.com/three@0.185.1/build/three.min.js',
-                    'https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.min.js'
-                ];
-
-                const controlsUrls = [
-                    'https://unpkg.com/three@0.185.1/examples/js/controls/OrbitControls.js',
-                    'https://cdn.jsdelivr.net/npm/three@0.185.1/examples/js/controls/OrbitControls.js'
-                ];
-
-                async function ensureThree(){
-                    for(const u of threeUrls){
-                        try{
-                            await loadScript(u);
-                            if(window.THREE) return true;
-                        }catch(e){ /* try next */ }
-                    }
-                    return false;
-                }
-
-                async function ensureControls(){
-                    for(const u of controlsUrls){
-                        try{
-                            await loadScript(u);
-                            if(window.THREE && window.THREE.OrbitControls) return true;
-                        }catch(e){ /* try next */ }
-                    }
-                    return false;
-                }
-
-                window.__loadThreeAndControls = async function(){
-                    const okThree = await ensureThree();
-                    if(!okThree) console.error('Failed to load Three.js from CDNs');
-                    const okControls = await ensureControls();
-                    if(!okControls) console.warn('OrbitControls not loaded; camera controls may be unavailable');
-                    return okThree;
-                };
-            })();
-        </script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            overflow: hidden;
-            background: #fafafa;
-        }
-        #three-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: #fafafa;
-        }
-        #loom {
-            width: 100%;
-            height: 200px;
-            background: #fafafa;
-            border-radius: 8px;
-            border: 1px solid #ddd;
-            margin-top: 10px;
-            overflow: hidden;
-        }
-        #loom.expanded {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 2000;
-            border-radius: 0;
-            border: none;
-        }
-        .input-overlay {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            z-index: 1000;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            max-width: 400px;
-        }
-        .input-overlay textarea {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 14px;
-            resize: vertical;
-            min-height: 80px;
-            font-family: monospace;
-        }
-        .input-overlay textarea:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        .input-overlay button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            margin-top: 10px;
-            width: 100%;
-        }
-        .input-overlay button:hover {
-            opacity: 0.9;
-        }
-        .expand-btn {
-            background: #6c757d;
-            margin-top: 5px;
-        }
-        .expand-btn:hover {
-            background: #5a6268;
-        }
-        .legend-overlay {
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px solid #ddd;
-        }
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 8px;
-            font-size: 14px;
-        }
-        .legend-color {
-            width: 24px;
-            height: 24px;
-            border-radius: 4px;
-            border: 1px solid #ccc;
-        }
-        .stitch {
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .stitch:hover {
-            filter: brightness(1.2);
-        }
-        .yarn-texture {
-            filter: url(#yarnFilter);
-        }
-    </style>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Chord Progression → Melody → MIDI</title>
+<style>
+  :root {
+    --bg: #14161c;
+    --panel: #1e212b;
+    --accent: #6ee7b7;
+    --accent2: #f472b6;
+    --text: #e6e8ef;
+    --muted: #8b90a3;
+    --border: #2c303c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    align-items: flex-start;
+  }
+  .sidebar {
+    width: 280px;
+    flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    min-height: 100vh;
+    padding: 20px 16px 40px;
+    position: sticky;
+    top: 0;
+  }
+  .sidebar h2 { font-size: 1rem; margin: 0 0 4px; }
+  .sidebar > p.hint { color: var(--muted); font-size: 0.78rem; margin: 0 0 14px; }
+  .nav-actions { display: flex; gap: 8px; margin-bottom: 14px; }
+  .nav-actions button { flex: 1; padding: 6px 8px; font-size: 0.75rem; }
+  .instrument-group { margin-bottom: 16px; }
+  .instrument-group h3 {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 0 0 8px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
+  }
+  .instrument-item { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 9px; }
+  .instrument-item input[type=checkbox] { width: auto; margin-top: 3px; accent-color: var(--accent); }
+  .instrument-item .info { display: flex; flex-direction: column; }
+  .instrument-item .info label { margin: 0; color: var(--text); font-weight: 600; font-size: 0.85rem; cursor: pointer; }
+  .instrument-item .info .desc { font-size: 0.72rem; color: var(--muted); line-height: 1.3; }
+  .instrument-swatch { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 60px;
+    min-width: 0;
+  }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  p.subtitle { color: var(--muted); margin: 0 0 20px; font-size: 0.9rem; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    width: 100%;
+    max-width: 960px;
+    margin-bottom: 18px;
+  }
+  label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+  textarea, input, select {
+    background: #10121a;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    width: 100%;
+  }
+  textarea { resize: vertical; min-height: 60px; }
+  .row {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .row > div { flex: 1; min-width: 140px; }
+  .actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+  button {
+    background: var(--accent);
+    color: #0a0d10;
+    border: none;
+    border-radius: 6px;
+    padding: 9px 16px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+  button.secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  #error {
+    color: var(--accent2);
+    font-size: 0.85rem;
+    min-height: 18px;
+    margin-top: 8px;
+  }
+  #pianoRollWrap {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #0c0e13;
+  }
+  canvas { display: block; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; font-size: 0.78rem; color: var(--muted); }
+  .legend .swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  footer { color: var(--muted); font-size: 0.75rem; margin-top: 10px; }
+</style>
 </head>
 <body>
-    <div id="three-container"><canvas style="display: block; width: 1920px; height: 955px;" width="1920" height="955"></canvas></div>
-    <div class="input-overlay">
-        <textarea id="patternInput" rows="4" placeholder="Enter pattern (space-separated): ch sc dc tr..." style="height: 243px;">dc tr hdc sc dc tr sl ch tr hdc sc dc</textarea>
-        <div style="display: flex; gap: 10px; margin-top: 10px;">
-            <div style="flex: 1;">
-                <label style="font-size: 12px; font-weight: 600; color: #555;">Layers:</label>
-                <input type="number" id="iterations" value="40" min="1" max="100" style="margin-bottom: 0;">
-            </div>
-        </div>
-        <button onclick="renderPattern()">Render Pattern</button>
-        <button onclick="toggleExpand()" class="expand-btn">Expand Preview</button>
-        <div id="loom"><svg width="304.5333251953125" height="200" style="background: rgb(255, 255, 255);"><g transform="translate(152.26666259765625, 100) scale(0.9)"><line class="base-connection" x1="4.898587196589413e-15" y1="-80" x2="39.99999999999999" y2="-69.2820323027551" stroke="#ddd" stroke-width="2"></line><line class="base-connection" x1="39.99999999999999" y1="-69.2820323027551" x2="69.28203230275508" y2="-40" stroke="#ddd" stroke-width="2"></line><line class="base-connection" x1="69.28203230275508" y1="-40" x2="80" y2="0" stroke="#ddd" stroke-width="2"></line><line class="base-connection" x1="80" y1="0" x2="69.2820323027551" y2="39.999999999999986" stroke="#ddd" stroke-width="2"></line><line class="base-connection" x1="69.2820323027551" y1="39.999999999999986" x2="39.99999999999999" y2="69.2820323027551" stroke="#ddd" stroke-width="2"></line><line class="base-connection" x1="39.99999999999999" y1="69.2820323027551" x2="4.898587196589413e-15" y2="80" stroke="#ddd" stroke-width="2"></line><line class="base-connection" x1="4.898587196589413e-15" y1="80" x2="-40.000000000000014" y2="69.28203230275508" stroke="#ddd" stroke-width="2"></line><line class="base-connection" x1="-40.000000000000014" y1="69.28203230275508" x2="-69.28203230275508" y2="40.00000000000003" stroke="#ddd" stroke-width="2"></line><line class="base-connection" x1="-69.28203230275508" y1="40.00000000000003" x2="-80" y2="9.797174393178826e-15" stroke="#ddd" stroke-width="2"></line><line class="base-connection" x1="-80" y1="9.797174393178826e-15" x2="-69.28203230275508" y2="-40.00000000000001" stroke="#ddd" stroke-width="2"></line><line class="base-connection" x1="-69.28203230275508" y1="-40.00000000000001" x2="-40.000000000000036" y2="-69.28203230275508" stroke="#ddd" stroke-width="2"></line><line class="base-connection" x1="-40.000000000000036" y1="-69.28203230275508" x2="4.898587196589413e-15" y2="-80" stroke="#ddd" stroke-width="2"></line><path class="pattern-path" d="M 4.898587196589413e-15 -80 Q 6 -22.392304845413268 39.99999999999999 -69.2820323027551" stroke="#FFEAA7" stroke-width="3" fill="none" opacity="0.6" stroke-linecap="round"></path><path class="pattern-path" d="M 39.99999999999999 -69.2820323027551 Q 16.39230484541326 -16.392304845413264 69.28203230275508 -40" stroke="#FF6B6B" stroke-width="3" fill="none" opacity="0.6" stroke-linecap="round"></path><path class="pattern-path" d="M 69.28203230275508 -40 Q 22.39230484541326 -6 80 0" stroke="#FFEAA7" stroke-width="3" fill="none" opacity="0.6" stroke-linecap="round"></path><path class="pattern-path" d="M 80 0 Q 22.392304845413268 5.999999999999997 69.2820323027551 39.999999999999986" stroke="#FF6B6B" stroke-width="3" fill="none" opacity="0.6" stroke-linecap="round"></path><path class="pattern-path" d="M 69.2820323027551 39.999999999999986 Q 16.39230484541326 16.39230484541326 39.99999999999999 69.2820323027551" stroke="#FFEAA7" stroke-width="3" fill="none" opacity="0.6" stroke-linecap="round"></path><path class="pattern-path" d="M 39.99999999999999 69.2820323027551 Q 6 22.392304845413268 4.898587196589413e-15 80" stroke="#FF6B6B" stroke-width="3" fill="none" opacity="0.6" stroke-linecap="round"></path><path class="pattern-path" d="M 4.898587196589413e-15 80 Q -6.000000000000001 22.39230484541326 -40.000000000000014 69.28203230275508" stroke="#FFEAA7" stroke-width="3" fill="none" opacity="0.6" stroke-linecap="round"></path><path class="pattern-path" d="M -40.000000000000014 69.28203230275508 Q -16.392304845413264 16.392304845413268 -69.28203230275508 40.00000000000003" stroke="#FF6B6B" stroke-width="3" fill="none" opacity="0.6" stroke-linecap="round"></path><path class="pattern-path" d="M -69.28203230275508 40.00000000000003 Q -22.39230484541326 6.000000000000005 -80 9.797174393178826e-15" stroke="#FFEAA7" stroke-width="3" fill="none" opacity="0.6" stroke-linecap="round"></path><path class="pattern-path" d="M -80 9.797174393178826e-15 Q -22.39230484541326 -6 -69.28203230275508 -40.00000000000001" stroke="#FF6B6B" stroke-width="3" fill="none" opacity="0.6" stroke-linecap="round"></path><path class="pattern-path" d="M -69.28203230275508 -40.00000000000001 Q -16.392304845413268 -16.39230484541326 -40.000000000000036 -69.28203230275508" stroke="#FFEAA7" stroke-width="3" fill="none" opacity="0.6" stroke-linecap="round"></path><path class="pattern-path" d="M -40.000000000000036 -69.28203230275508 Q -6.000000000000004 -22.39230484541326 4.898587196589413e-15 -80" stroke="#FF6B6B" stroke-width="3" fill="none" opacity="0.6" stroke-linecap="round"></path><path class="pattern-path" d="M 4.898587196589413e-15 -80 Q 6 -22.392304845413268 39.99999999999999 -69.2820323027551" stroke="#FFEAA7" stroke-width="3" fill="none" opacity="0.6" stroke-linecap="round"></path><path class="pattern-path" d="M 39.99999999999999 -69.2820323027551 Q 16.39230484541326 -16.392304845413264 69.28203230275508 -40" stroke="#FF6B6B" stroke-width="3" fill="none" opacity="0.6" stroke-linecap="round"></path><circle class="stitch" cx="4.898587196589413e-15" cy="-80" r="20" fill="#FFEAA7" stroke="#333" stroke-width="2"></circle><circle class="stitch" cx="39.99999999999999" cy="-69.2820323027551" r="20" fill="#FF6B6B" stroke="#333" stroke-width="2"></circle><circle class="stitch" cx="69.28203230275508" cy="-40" r="20" fill="#FFEAA7" stroke="#333" stroke-width="2"></circle><circle class="stitch" cx="80" cy="0" r="20" fill="#FF6B6B" stroke="#333" stroke-width="2"></circle><circle class="stitch" cx="69.2820323027551" cy="39.999999999999986" r="20" fill="#FFEAA7" stroke="#333" stroke-width="2"></circle><circle class="stitch" cx="39.99999999999999" cy="69.2820323027551" r="20" fill="#FF6B6B" stroke="#333" stroke-width="2"></circle><circle class="stitch" cx="4.898587196589413e-15" cy="80" r="20" fill="#FFEAA7" stroke="#333" stroke-width="2"></circle><circle class="stitch" cx="-40.000000000000014" cy="69.28203230275508" r="20" fill="#FF6B6B" stroke="#333" stroke-width="2"></circle><circle class="stitch" cx="-69.28203230275508" cy="40.00000000000003" r="20" fill="#FFEAA7" stroke="#333" stroke-width="2"></circle><circle class="stitch" cx="-80" cy="9.797174393178826e-15" r="20" fill="#FF6B6B" stroke="#333" stroke-width="2"></circle><circle class="stitch" cx="-69.28203230275508" cy="-40.00000000000001" r="20" fill="#FFEAA7" stroke="#333" stroke-width="2"></circle><circle class="stitch" cx="-40.000000000000036" cy="-69.28203230275508" r="20" fill="#FF6B6B" stroke="#333" stroke-width="2"></circle><text x="4.898587196589413e-15" y="-80" text-anchor="middle" dominant-baseline="middle" fill="#000000" font-size="14" font-weight="bold">sl</text><text x="39.99999999999999" y="-69.2820323027551" text-anchor="middle" dominant-baseline="middle" fill="#000000" font-size="14" font-weight="bold">ch</text><text x="69.28203230275508" y="-40" text-anchor="middle" dominant-baseline="middle" fill="#000000" font-size="14" font-weight="bold">sl</text><text x="80" y="0" text-anchor="middle" dominant-baseline="middle" fill="#000000" font-size="14" font-weight="bold">ch</text><text x="69.2820323027551" y="39.999999999999986" text-anchor="middle" dominant-baseline="middle" fill="#000000" font-size="14" font-weight="bold">sl</text><text x="39.99999999999999" y="69.2820323027551" text-anchor="middle" dominant-baseline="middle" fill="#000000" font-size="14" font-weight="bold">ch</text><text x="4.898587196589413e-15" y="80" text-anchor="middle" dominant-baseline="middle" fill="#000000" font-size="14" font-weight="bold">sl</text><text x="-40.000000000000014" y="69.28203230275508" text-anchor="middle" dominant-baseline="middle" fill="#000000" font-size="14" font-weight="bold">ch</text><text x="-69.28203230275508" y="40.00000000000003" text-anchor="middle" dominant-baseline="middle" fill="#000000" font-size="14" font-weight="bold">sl</text><text x="-80" y="9.797174393178826e-15" text-anchor="middle" dominant-baseline="middle" fill="#000000" font-size="14" font-weight="bold">ch</text><text x="-69.28203230275508" y="-40.00000000000001" text-anchor="middle" dominant-baseline="middle" fill="#000000" font-size="14" font-weight="bold">sl</text><text x="-40.000000000000036" y="-69.28203230275508" text-anchor="middle" dominant-baseline="middle" fill="#000000" font-size="14" font-weight="bold">ch</text><text class="node-number" x="7.041719095097281e-15" y="-115" text-anchor="middle" dominant-baseline="middle" fill="#666" font-size="12">1</text><text class="node-number" x="57.499999999999986" y="-99.59292143521046" text-anchor="middle" dominant-baseline="middle" fill="#666" font-size="12">2</text><text class="node-number" x="99.59292143521043" y="-57.5" text-anchor="middle" dominant-baseline="middle" fill="#666" font-size="12">3</text><text class="node-number" x="115" y="0" text-anchor="middle" dominant-baseline="middle" fill="#666" font-size="12">4</text><text class="node-number" x="99.59292143521046" y="57.49999999999998" text-anchor="middle" dominant-baseline="middle" fill="#666" font-size="12">5</text><text class="node-number" x="57.499999999999986" y="99.59292143521046" text-anchor="middle" dominant-baseline="middle" fill="#666" font-size="12">6</text><text class="node-number" x="7.041719095097281e-15" y="115" text-anchor="middle" dominant-baseline="middle" fill="#666" font-size="12">7</text><text class="node-number" x="-57.50000000000002" y="99.59292143521043" text-anchor="middle" dominant-baseline="middle" fill="#666" font-size="12">8</text><text class="node-number" x="-99.59292143521043" y="57.50000000000004" text-anchor="middle" dominant-baseline="middle" fill="#666" font-size="12">9</text><text class="node-number" x="-115" y="1.4083438190194563e-14" text-anchor="middle" dominant-baseline="middle" fill="#666" font-size="12">10</text><text class="node-number" x="-99.59292143521043" y="-57.500000000000014" text-anchor="middle" dominant-baseline="middle" fill="#666" font-size="12">11</text><text class="node-number" x="-57.50000000000005" y="-99.59292143521043" text-anchor="middle" dominant-baseline="middle" fill="#666" font-size="12">12</text></g></svg></div>
-        <div class="legend-overlay" id="legend"><div class="legend-item"><div class="legend-color" style="background: rgb(255, 107, 107);"></div><span>ch: chain</span></div><div class="legend-item"><div class="legend-color" style="background: rgb(78, 205, 196);"></div><span>sc: single crochet</span></div><div class="legend-item"><div class="legend-color" style="background: rgb(69, 183, 209);"></div><span>dc: double crochet</span></div><div class="legend-item"><div class="legend-color" style="background: rgb(150, 206, 180);"></div><span>tr: treble crochet</span></div><div class="legend-item"><div class="legend-color" style="background: rgb(255, 234, 167);"></div><span>sl: slip stitch</span></div><div class="legend-item"><div class="legend-color" style="background: rgb(221, 160, 221);"></div><span>hdc: half double crochet</span></div></div>
+
+<nav class="sidebar" id="instrumentNav">
+  <h2>Orchestra</h2>
+  <p class="hint">Choose which instruments accompany the melody. Hover each name for its orchestral role.</p>
+  <div class="nav-actions">
+    <button type="button" id="selectAllBtn" class="secondary">Select all</button>
+    <button type="button" id="selectNoneBtn" class="secondary">Clear</button>
+  </div>
+  <div id="instrumentGroups"></div>
+</nav>
+
+<div class="content">
+
+<h1>Chord Progression → Melody → MIDI</h1>
+<p class="subtitle">Type a chord progression, generate a melody over it, preview the piano roll, play it back, and export a real .mid file.</p>
+
+<div class="card">
+  <label for="chords">Chord progression (comma or newline separated, e.g. <code>G, C, D, Dm, C, Am</code>. Use <code>Chord:beats</code> to override beat length, e.g. <code>G:2</code>)</label>
+  <textarea id="chords">E, A, B, F#, E, A, B</textarea>
+
+  <div class="row">
+    <div>
+      <label for="tempo">Tempo (BPM)</label>
+      <input type="number" id="tempo" value="56" min="1" max="220">
     </div>
+    <div>
+      <label for="timeSignature">Time signature</label>
+      <select id="timeSignature">
+        <option value="4/4">4/4</option>
+        <option value="3/4">3/4</option>
+        <option value="7/8" selected>7/8</option>
+      </select>
+    </div>
+    <div>
+      <label for="beatsPerChord">Default beats per chord</label>
+      <input type="number" id="beatsPerChord" value="8" min="1" max="8">
+    </div>
+    <div>
+      <label for="density">Melody density</label>
+      <select id="density">
+        <option value="1">Quarter notes</option>
+        <option value="2" selected>Eighth notes</option>
+        <option value="4">Sixteenth notes</option>
+      </select>
+    </div>
+    <div>
+      <label for="includeMelody">Melody</label>
+      <div style="display:flex; align-items:center; gap:6px; height:36px;">
+        <input type="checkbox" id="includeMelody" style="width:auto;">
+        <label for="includeMelody" style="margin:0; font-size:0.85rem; color:var(--text); cursor:pointer;">Include melody line</label>
+      </div>
+    </div>
+    <div>
+      <label for="register">Melody register</label>
+      <select id="register">
+        <option value="60">Low (C4)</option>
+        <option value="67" selected>Mid (G4)</option>
+        <option value="72">High (C5)</option>
+      </select>
+    </div>
+    <div>
+      <label for="melodyInstrument">Melody instrument</label>
+      <select id="melodyInstrument">
+        <option value="0" selected>Acoustic Grand Piano</option>
+        <option value="4">Electric Piano</option>
+        <option value="24">Nylon Guitar</option>
+        <option value="40">Violin</option>
+        <option value="56">Trumpet</option>
+        <option value="73">Flute</option>
+        <option value="52">Choir Aahs</option>
+        <option value="80">Synth Lead</option>
+      </select>
+    </div>
+    <div>
+      <label for="seed">Seed (repeatable melody + orchestra)</label>
+      <div style="display:flex; gap:6px;">
+        <input type="number" id="seed" value="1" min="0" step="1">
+        <button type="button" id="randomizeSeedBtn" class="secondary" style="flex-shrink:0;">🎲</button>
+      </div>
+    </div>
+  </div>
 
-    <script>
-        const defaultLegend = {
-            'ch': { color: '#018deb', name: 'chain' },
-            'sc': { color: '#CCFFEE', name: 'single crochet' },
-            'dc': { color: '#45B7D1', name: 'double crochet' },
-            'tr': { color: '#96CEB4', name: 'treble crochet' },
-            'sl': { color: '#FFEAA7', name: 'slip stitch' },
-            'hdc': { color: '#DDA0DD', name: 'half double crochet' }
-        };
+  <div id="error"></div>
 
-        let currentLegend = { ...defaultLegend };
+  <div class="actions">
+    <button id="generateBtn">Generate melody</button>
+    <button id="playBtn" class="secondary" disabled>▶ Play</button>
+    <button id="stopBtn" class="secondary" disabled>■ Stop</button>
+    <button id="downloadMidiBtn" class="secondary" disabled>⭳ Download .mid</button>
+    <button id="downloadPngBtn" class="secondary" disabled>⭳ Download piano-roll PNG</button>
+  </div>
+</div>
 
-        function parseLegend(input) {
-            const legend = {};
-            const lines = input.trim().split('\n');
-            lines.forEach(line => {
-                const parts = line.split(':');
-                if (parts.length >= 3) {
-                    legend[parts[0].trim()] = {
-                        color: parts[1].trim(),
-                        name: parts[2].trim()
-                    };
-                }
-            });
-            return legend;
+<div class="card">
+  <div id="pianoRollWrap">
+    <canvas id="pianoRoll" width="900" height="320"></canvas>
+  </div>
+  <div class="legend" id="legend"></div>
+</div>
+
+<footer>Everything runs client-side: melody generation, piano-roll rendering, audio playback, and MIDI file export.</footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- Music theory data ----------
+
+  const PITCH_CLASS = {
+    "C": 0, "B#": 0,
+    "C#": 1, "Db": 1,
+    "D": 2,
+    "D#": 3, "Eb": 3,
+    "E": 4, "Fb": 4,
+    "F": 5, "E#": 5,
+    "F#": 6, "Gb": 6,
+    "G": 7,
+    "G#": 8, "Ab": 8,
+    "A": 9,
+    "A#": 10, "Bb": 10,
+    "B": 11, "Cb": 11
+  };
+
+  // Interval sets (semitones from root) per chord quality suffix.
+  const QUALITY_INTERVALS = {
+    "": [0, 4, 7],
+    "maj": [0, 4, 7],
+    "M": [0, 4, 7],
+    "m": [0, 3, 7],
+    "min": [0, 3, 7],
+    "-": [0, 3, 7],
+    "7": [0, 4, 7, 10],
+    "maj7": [0, 4, 7, 11],
+    "M7": [0, 4, 7, 11],
+    "m7": [0, 3, 7, 10],
+    "min7": [0, 3, 7, 10],
+    "-7": [0, 3, 7, 10],
+    "m7b5": [0, 3, 6, 10],
+    "dim": [0, 3, 6],
+    "dim7": [0, 3, 6, 9],
+    "aug": [0, 4, 8],
+    "sus2": [0, 2, 7],
+    "sus4": [0, 5, 7],
+    "6": [0, 4, 7, 9],
+    "m6": [0, 3, 7, 9],
+    "9": [0, 4, 7, 10, 14],
+    "add9": [0, 4, 7, 14]
+  };
+
+  const MINOR_QUALITIES = new Set(["m", "min", "-", "m7", "min7", "-7", "m7b5", "dim", "dim7", "m6"]);
+
+  const MAJOR_SCALE = [0, 2, 4, 5, 7, 9, 11];
+  const MINOR_SCALE = [0, 2, 3, 5, 7, 8, 10];
+
+  const NOTE_NAMES_SHARP = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+  // ---------- Orchestra instrument catalog ----------
+  // channel 0 is reserved for the melody, channel 9 for unpitched percussion.
+  const INSTRUMENTS = [
+    { id: "violin", name: "Violin", section: "Strings", program: 40, channel: 1, low: 55, high: 79, role: "high", velocity: 58, color: "#93c5fd", defaultOn: false, desc: "Sustains the highest chord tone for a bright top line." },
+    { id: "viola", name: "Viola", section: "Strings", program: 41, channel: 2, low: 48, high: 67, role: "nearest", velocity: 56, color: "#a5b4fc", defaultOn: false, desc: "Fills the alto register, voice-led smoothly between chords." },
+    { id: "cello", name: "Cello", section: "Strings", program: 42, channel: 3, low: 36, high: 60, role: "nearest", velocity: 58, color: "#818cf8", defaultOn: false, desc: "Tenor voice that anchors the harmony below the melody." },
+    { id: "doublebass", name: "Double Bass", section: "Strings", program: 43, channel: 4, low: 28, high: 48, role: "low", velocity: 62, color: "#6366f1", defaultOn: false, desc: "Plays the lowest chord tone, one per chord, as the bass line." },
+    { id: "harp", name: "Harp", section: "Strings", program: 46, channel: 5, low: 48, high: 79, role: "arpeggio", velocity: 60, color: "#c4b5fd", defaultOn: false, desc: "Ripples through the chord tones as a rolled arpeggio." },
+    { id: "flute", name: "Flute", section: "Woodwinds", program: 73, channel: 6, low: 60, high: 84, role: "high", velocity: 56, color: "#fbbf24", defaultOn: false, desc: "Airy high sustained tone doubling the top of the harmony." },
+    { id: "oboe", name: "Oboe", section: "Woodwinds", program: 68, channel: 7, low: 58, high: 79, role: "nearest", velocity: 54, color: "#fcd34d", defaultOn: false, desc: "Reedy middle voice, smoothly voice-led between chords." },
+    { id: "clarinet", name: "Clarinet", section: "Woodwinds", program: 71, channel: 8, low: 50, high: 79, role: "nearest", velocity: 54, color: "#fde68a", defaultOn: false, desc: "Warm middle voice filling out the woodwind choir." },
+    { id: "bassoon", name: "Bassoon", section: "Woodwinds", program: 70, channel: 10, low: 34, high: 57, role: "low", velocity: 54, color: "#f59e0b", defaultOn: false, desc: "Low woodwind doubling the bass an octave apart in tone color." },
+    { id: "trumpet", name: "Trumpet", section: "Brass", program: 56, channel: 11, low: 58, high: 77, role: "high", velocity: 60, color: "#fb923c", defaultOn: false, desc: "Bright brass line sitting on top of the harmony." },
+    { id: "frenchhorn", name: "French Horn", section: "Brass", program: 60, channel: 12, low: 41, high: 65, role: "nearest", velocity: 56, color: "#f97316", defaultOn: false, desc: "Warm mid-brass pad, smoothly voice-led between chords." },
+    { id: "trombone", name: "Trombone", section: "Brass", program: 57, channel: 13, low: 40, high: 60, role: "low", velocity: 58, color: "#ea580c", defaultOn: false, desc: "Lower brass voice reinforcing the harmony's foundation." },
+    { id: "tuba", name: "Tuba", section: "Brass", program: 58, channel: 14, low: 28, high: 48, role: "low", velocity: 62, color: "#c2410c", defaultOn: false, desc: "Deep brass bass doubling the root of each chord." },
+    { id: "timpani", name: "Timpani", section: "Percussion", program: 47, channel: 15, low: 36, high: 48, role: "root-hit", velocity: 88, color: "#94a3b8", defaultOn: false, desc: "A single pitched hit on the root at the start of each chord." },
+    { id: "cymbal", name: "Cymbal", section: "Percussion", channel: 9, isPercussion: true, drumNote: 49, velocity: 72, color: "#64748b", defaultOn: false, desc: "A soft crash marking the start of each chord change." },
+    { id: "shufflekit", name: "Shuffle Kit", section: "Percussion", channel: 9, isPercussion: true, role: "shuffle", velocity: 82, color: "#475569", defaultOn: true, desc: "A swung Purdie-style shuffle groove: kick, backbeat snare, ghost notes, and triplet hi-hat." }
+  ];
+
+  const FAMILY_WAVE = {
+    melody: "triangle",
+    Strings: "sawtooth",
+    Woodwinds: "sine",
+    Brass: "sawtooth",
+    Percussion: "sine"
+  };
+
+  // ---------- Chord parsing ----------
+
+  function parseChordToken(token) {
+    // token like "G", "Dm7", "F#maj7", "Bb:2"
+    const m = token.match(/^([A-Ga-g])([#b]?)(.*)$/);
+    if (!m) return null;
+    const letter = m[1].toUpperCase();
+    const accidental = m[2];
+    const quality = m[3] || "";
+    const root = PITCH_CLASS[letter + accidental];
+    if (root === undefined) return null;
+    if (!(quality in QUALITY_INTERVALS)) return null;
+    return {
+      root,
+      quality,
+      intervals: QUALITY_INTERVALS[quality],
+      isMinor: MINOR_QUALITIES.has(quality),
+      label: letter + accidental + quality
+    };
+  }
+
+  function parseProgression(text, defaultBeats) {
+    const rawTokens = text.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+    const chords = [];
+    const problems = [];
+    for (const raw of rawTokens) {
+      let chordPart = raw;
+      let beats = defaultBeats;
+      const beatMatch = raw.match(/^(.*):(\d+(\.\d+)?)$/);
+      if (beatMatch) {
+        chordPart = beatMatch[1].trim();
+        beats = parseFloat(beatMatch[2]);
+      }
+      const parsed = parseChordToken(chordPart);
+      if (!parsed) {
+        problems.push(raw);
+        continue;
+      }
+      parsed.beats = beats;
+      parsed.raw = raw;
+      chords.push(parsed);
+    }
+    return { chords, problems };
+  }
+
+  // ---------- Melody generation ----------
+
+  function chordToneMidis(chord, low, high) {
+    // All chord-tone MIDI notes within [low, high].
+    const result = [];
+    for (let oct = -1; oct <= 9; oct++) {
+      for (const interval of chord.intervals) {
+        const pc = (chord.root + interval) % 12;
+        const midi = (oct + 1) * 12 + pc;
+        if (midi >= low && midi <= high) result.push(midi);
+      }
+    }
+    return [...new Set(result)].sort((a, b) => a - b);
+  }
+
+  function scaleMidis(chord, low, high) {
+    const scale = chord.isMinor ? MINOR_SCALE : MAJOR_SCALE;
+    const result = [];
+    for (let oct = -1; oct <= 9; oct++) {
+      for (const interval of scale) {
+        const pc = (chord.root + interval) % 12;
+        const midi = (oct + 1) * 12 + pc;
+        if (midi >= low && midi <= high) result.push(midi);
+      }
+    }
+    return [...new Set(result)].sort((a, b) => a - b);
+  }
+
+  function closest(notes, target, rng) {
+    let bestDist = Infinity;
+    let candidates = [];
+    for (const n of notes) {
+      const d = Math.abs(n - target);
+      if (d < bestDist) { bestDist = d; candidates = [n]; }
+      else if (d === bestDist) candidates.push(n);
+    }
+    if (candidates.length <= 1 || !rng) return candidates[0];
+    return candidates[Math.floor(rng() * candidates.length)];
+  }
+
+  function nearbyOptions(notes, target, maxStep) {
+    return notes.filter(n => Math.abs(n - target) <= maxStep);
+  }
+
+  // Deterministic PRNG (mulberry32) so a given seed always reproduces the same melody.
+  function createRng(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a |= 0; a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // Derives an independent sub-seed per part from one master seed, so every
+  // instrument (and the melody) is reproducible on its own and unaffected by
+  // which other instruments happen to be selected.
+  function partSeed(masterSeed, label) {
+    let h = masterSeed >>> 0;
+    for (let i = 0; i < label.length; i++) {
+      h = Math.imul(h ^ label.charCodeAt(i), 2654435761);
+      h = (h ^ (h >>> 13)) >>> 0;
+    }
+    return h >>> 0;
+  }
+
+  function generateMelody(chords, ticksPerBeat, subdivisionsPerBeat, register, rng) {
+    const low = register - 12;
+    const high = register + 12;
+    const events = []; // {midi, startTick, durationTicks, velocity, channel}
+    let tick = 0;
+    let lastNote = register;
+
+    chords.forEach((chord, chordIndex) => {
+      const chordTones = chordToneMidis(chord, low, high);
+      const scale = scaleMidis(chord, low, high);
+      const subdivisions = Math.max(1, Math.round(chord.beats * subdivisionsPerBeat));
+      const stepTicks = (chord.beats * ticksPerBeat) / subdivisions;
+      const nextChord = chords[chordIndex + 1];
+      const nextChordTones = nextChord ? chordToneMidis(nextChord, low, high) : null;
+
+      for (let i = 0; i < subdivisions; i++) {
+        let candidate;
+        const isFirst = i === 0;
+        const isLast = i === subdivisions - 1;
+
+        if (isFirst) {
+          const options = nearbyOptions(chordTones, lastNote, 7);
+          candidate = options.length ? closest(options, lastNote, rng) : closest(chordTones, lastNote, rng);
+        } else if (isLast && nextChordTones) {
+          const target = closest(nextChordTones, lastNote, rng);
+          const options = nearbyOptions(scale, target, 2);
+          candidate = options.length ? closest(options, lastNote, rng) : target;
+        } else {
+          const roll = rng();
+          if (roll < 0.6) {
+            const stepOptions = nearbyOptions(scale, lastNote, 2).filter(n => n !== lastNote);
+            candidate = stepOptions.length ? stepOptions[Math.floor(rng() * stepOptions.length)] : lastNote;
+          } else if (roll < 0.85) {
+            candidate = closest(chordTones, lastNote, rng);
+          } else {
+            const leapOptions = nearbyOptions(scale, lastNote, 4);
+            candidate = leapOptions.length ? leapOptions[Math.floor(rng() * leapOptions.length)] : lastNote;
+          }
         }
 
-        function renderPattern() {
-            const patternInput = document.getElementById('patternInput').value;
-            const nodeCount = 12;
-            const nodeRadius = 20;
-            const circleRadius = 80;
-            const bgColor = '#ffffff';
-            const isExpanded = document.getElementById('loom').classList.contains('expanded');
-
-            // Parse pattern
-            const stitches = patternInput.trim().split(/\s+/).filter(s => s);
-            
-            // Clear previous rendering
-            d3.select('#loom').selectAll('*').remove();
-
-            // Get dimensions based on state
-            let width, height, scale;
-            if (isExpanded) {
-                width = window.innerWidth;
-                height = window.innerHeight;
-                const graphSize = 400 + nodeRadius * 2;
-                scale = Math.min(width / graphSize, height / graphSize) * 0.8;
-            } else {
-                const loomRect = document.getElementById('loom').getBoundingClientRect();
-                width = loomRect.width;
-                height = loomRect.height;
-                const graphSize = circleRadius * 2 + nodeRadius * 2;
-                scale = Math.min(width / graphSize, height / graphSize) * 0.9;
-            }
-            
-            // Create SVG
-            const svg = d3.select('#loom')
-                .append('svg')
-                .attr('width', width)
-                .attr('height', height)
-                .style('background', bgColor);
-            
-            // Create group for scaling and centering
-            const g = svg.append('g')
-                .attr('transform', `translate(${width / 2}, ${height / 2}) scale(${scale})`);
-
-            // Create nodes positioned equally around a circle
-            const nodes = [];
-            for (let i = 0; i < nodeCount; i++) {
-                const angle = (i / nodeCount) * 2 * Math.PI - Math.PI / 2;
-                const x = circleRadius * Math.cos(angle);
-                const y = circleRadius * Math.sin(angle);
-                const stitchCode = stitches[i % stitches.length] || 'ch';
-                const stitchInfo = currentLegend[stitchCode] || { color: '#cccccc', name: 'unknown' };
-                
-                nodes.push({
-                    index: i,
-                    x,
-                    y,
-                    angle,
-                    stitch: stitchCode,
-                    color: stitchInfo.color,
-                    name: stitchInfo.name
-                });
-            }
-
-            // Draw connections between adjacent nodes (base ring)
-            const connections = [];
-            for (let i = 0; i < nodeCount; i++) {
-                const nextIndex = (i + 1) % nodeCount;
-                connections.push({
-                    source: nodes[i],
-                    target: nodes[nextIndex]
-                });
-            }
-
-            // Draw base ring connections
-            g.selectAll('.base-connection')
-                .data(connections)
-                .enter()
-                .append('line')
-                .attr('class', 'base-connection')
-                .attr('x1', d => d.source.x)
-                .attr('y1', d => d.source.y)
-                .attr('x2', d => d.target.x)
-                .attr('y2', d => d.target.y)
-                .attr('stroke', '#ddd')
-                .attr('stroke-width', 2);
-
-            // Draw pattern wrapping path
-            const patternPath = [];
-            for (let i = 0; i < stitches.length; i++) {
-                const nodeIndex = i % nodeCount;
-                const nextNodeIndex = (i + 1) % nodeCount;
-                patternPath.push({
-                    source: nodes[nodeIndex],
-                    target: nodes[nextNodeIndex],
-                    stitch: stitches[i],
-                    color: currentLegend[stitches[i]]?.color || '#cccccc'
-                });
-            }
-
-            // Draw pattern path with curved lines through center
-            g.selectAll('.pattern-path')
-                .data(patternPath)
-                .enter()
-                .append('path')
-                .attr('class', 'pattern-path')
-                .attr('d', d => {
-                    const midX = (d.source.x + d.target.x) / 2;
-                    const midY = (d.source.y + d.target.y) / 2;
-                    // Curve through center for figure-8 pattern effect
-                    const controlX = midX * 0.3;
-                    const controlY = midY * 0.3;
-                    return `M ${d.source.x} ${d.source.y} Q ${controlX} ${controlY} ${d.target.x} ${d.target.y}`;
-                })
-                .attr('stroke', d => d.color)
-                .attr('stroke-width', 3)
-                .attr('fill', 'none')
-                .attr('opacity', 0.6)
-                .attr('stroke-linecap', 'round');
-
-            // Draw nodes
-            g.selectAll('circle')
-                .data(nodes)
-                .enter()
-                .append('circle')
-                .attr('class', 'stitch')
-                .attr('cx', d => d.x)
-                .attr('cy', d => d.y)
-                .attr('r', nodeRadius)
-                .attr('fill', d => d.color)
-                .attr('stroke', '#333')
-                .attr('stroke-width', 2)
-                .on('mouseover', function(event, d) {
-                    d3.select(this)
-                        .attr('r', nodeRadius + 5)
-                        .attr('stroke-width', 4);
-                })
-                .on('mouseout', function(event, d) {
-                    d3.select(this)
-                        .attr('r', nodeRadius)
-                        .attr('stroke-width', 2);
-                });
-
-            // Draw node labels
-            g.selectAll('text')
-                .data(nodes)
-                .enter()
-                .append('text')
-                .attr('x', d => d.x)
-                .attr('y', d => d.y)
-                .attr('text-anchor', 'middle')
-                .attr('dominant-baseline', 'middle')
-                .attr('fill', d => getContrastColor(d.color))
-                .attr('font-size', 14)
-                .attr('font-weight', 'bold')
-                .text(d => d.stitch);
-
-            // Draw node numbers
-            g.selectAll('.node-number')
-                .data(nodes)
-                .enter()
-                .append('text')
-                .attr('class', 'node-number')
-                .attr('x', d => d.x + (nodeRadius + 15) * Math.cos(d.angle))
-                .attr('y', d => d.y + (nodeRadius + 15) * Math.sin(d.angle))
-                .attr('text-anchor', 'middle')
-                .attr('dominant-baseline', 'middle')
-                .attr('fill', '#666')
-                .attr('font-size', 12)
-                .text(d => d.index + 1);
-
-            // Render legend
-            const legendContainer = d3.select('#legend');
-            legendContainer.selectAll('*').remove();
-            Object.entries(currentLegend).forEach(([code, info]) => {
-                const item = legendContainer.append('div')
-                    .attr('class', 'legend-item');
-                
-                item.append('div')
-                    .attr('class', 'legend-color')
-                    .style('background', info.color);
-                
-                item.append('span')
-                    .text(`${code}: ${info.name}`);
-            });
-        }
-
-        function getContrastColor(hexcolor) {
-            const r = parseInt(hexcolor.slice(1, 3), 16);
-            const g = parseInt(hexcolor.slice(3, 5), 16);
-            const b = parseInt(hexcolor.slice(5, 7), 16);
-            const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-            return luminance > 0.5 ? '#000000' : '#ffffff';
-        }
-
-        function toggleExpand() {
-            const loom = document.getElementById('loom');
-            loom.classList.toggle('expanded');
-            const btn = document.querySelector('.expand-btn');
-            btn.textContent = loom.classList.contains('expanded') ? 'Collapse Preview' : 'Expand Preview';
-            renderPattern();
-        }
-
-        // Handle window resize
-        window.addEventListener('resize', () => {
-            if (document.getElementById('patternInput').value.trim()) {
-                renderPattern();
-            }
+        events.push({
+          midi: candidate,
+          startTick: Math.round(tick),
+          durationTicks: Math.round(stepTicks * 0.92),
+          velocity: 92,
+          channel: 0
         });
 
-        // Three.js setup
-        let scene, camera, renderer, controls;
-        let isThreeInitialized = false;
+        lastNote = candidate;
+        tick += stepTicks;
+      }
+    });
 
-        function initThreeJS() {
-            if (isThreeInitialized) return;
-            
-            const container = document.getElementById('three-container');
-            const width = window.innerWidth;
-            const height = window.innerHeight;
-            
-            // Scene
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0xfafafa);
-            
-            // Camera
-            camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
-            camera.position.set(0, 0, 15);
-            
-            // Renderer
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(width, height);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            container.innerHTML = '';
-            container.appendChild(renderer.domElement);
-            
-            // Controls
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-            controls.enableZoom = true;
-            controls.enableRotate = true;
-            controls.enablePan = true;
-            
-            // Lighting for better thread texture
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-            scene.add(ambientLight);
-            
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
-            directionalLight.position.set(10, 10, 10);
-            directionalLight.castShadow = true;
-            scene.add(directionalLight);
-            
-            const pointLight = new THREE.PointLight(0xffffff, 0.4);
-            pointLight.position.set(-10, -10, 10);
-            scene.add(pointLight);
-            
-            const rimLight = new THREE.DirectionalLight(0xffffff, 0.3);
-            rimLight.position.set(0, 0, -10);
-            scene.add(rimLight);
-            
-            // Handle resize
-            window.addEventListener('resize', onWindowResize);
-            
-            isThreeInitialized = true;
-            animate();
-        }
+    return events;
+  }
 
-        function onWindowResize() {
-            const width = window.innerWidth;
-            const height = window.innerHeight;
-            
-            camera.aspect = width / height;
-            camera.updateProjectionMatrix();
-            
-            renderer.setSize(width, height);
-        }
+  // Consonance rank per interval class (0 = most consonant, 8 = most dissonant).
+  const INTERVAL_CONSONANCE = { 0: 0, 7: 1, 4: 2, 3: 2, 9: 3, 8: 3, 5: 4, 10: 5, 2: 6, 11: 7, 1: 8, 6: 8 };
 
-        function animate() {
-            requestAnimationFrame(animate);
-            controls.update();
-            renderer.render(scene, camera);
-        }
+  function consonanceWithMelody(note, melodyNote) {
+    if (melodyNote == null) return 0;
+    const ic = ((note - melodyNote) % 12 + 12) % 12;
+    return INTERVAL_CONSONANCE[ic];
+  }
 
-        function update3DFlower() {
-            const patternInput = document.getElementById('patternInput').value;
-            const stitches = patternInput.trim().split(/\s+/).filter(s => s);
-            const layers = parseInt(document.getElementById('iterations').value) || 3;
-            
-            // Initialize Three.js if not already done
-            initThreeJS();
-            
-            // Clear existing 3D objects
-            while(scene.children.length > 0) { 
-                scene.remove(scene.children[0]); 
-            }
-            
-            // Re-add lights
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-            scene.add(ambientLight);
-            
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
-            directionalLight.position.set(10, 10, 10);
-            directionalLight.castShadow = true;
-            scene.add(directionalLight);
-            
-            const pointLight = new THREE.PointLight(0xffffff, 0.4);
-            pointLight.position.set(-10, -10, 10);
-            scene.add(pointLight);
-            
-            const rimLight = new THREE.DirectionalLight(0xffffff, 0.3);
-            rimLight.position.set(0, 0, -10);
-            scene.add(rimLight);
-            
-            if (stitches.length === 0) return;
-            
-            const baseKnotSize = 5;
-            const layers_3d = layers;
-            
-            // Create multiple knot layers in 3D
-            for (let layer = 0; layer < layers_3d; layer++) {
-                const layerScale = 1 - (layer * 0.15);
-                const layerRotation = layer * (Math.PI / stitches.length);
-                const layerZ = layer * 0.15; // Smaller z-offset for tighter layering
-                const knotSize = baseKnotSize * layerScale;
-                
-                // Create knot path points for this layer
-                const knotPoints = [];
-                const segments = stitches.length;
-                const radius = knotSize;
-                
-                for (let i = 0; i < segments; i++) {
-                    const angle1 = (i / segments) * 2 * Math.PI;
-                    const angle2 = ((i + 0.5) / segments) * 2 * Math.PI;
-                    const angle3 = ((i + 1) / segments) * 2 * Math.PI;
-                    
-                    const color = currentLegend[stitches[i]]?.color || '#cccccc';
-                    
-                    // Outer point
-                    knotPoints.push({
-                        x: Math.cos(angle1) * radius,
-                        y: Math.sin(angle1) * radius,
-                        z: layerZ,
-                        color: color,
-                        index: i
-                    });
-                    
-                    // Inner point (creates the weave)
-                    knotPoints.push({
-                        x: Math.cos(angle2) * radius * 0.5,
-                        y: Math.sin(angle2) * radius * 0.5,
-                        z: layerZ + 0.1,
-                        color: color,
-                        index: i
-                    });
-                }
-                
-                // Draw knot strands with over/under pattern using 3D tubes
-                for (let i = 0; i < knotPoints.length; i += 2) {
-                    const p1 = knotPoints[i];
-                    const p2 = knotPoints[i + 1];
-                    const p3 = knotPoints[(i + 2) % knotPoints.length];
-                    const p4 = knotPoints[(i + 3) % knotPoints.length];
-                    
-                    const isOver = (i + layer * 2) % 4 === 0;
-                    
-                    // Create curved path for the strand with more points for smoother curves
-                    const curve = new THREE.CatmullRomCurve3([
-                        new THREE.Vector3(p1.x, p1.y, p1.z),
-                        new THREE.Vector3(p2.x, p2.y, p2.z),
-                        new THREE.Vector3(p3.x, p3.y, p3.z),
-                        new THREE.Vector3(p4.x, p4.y, p4.z)
-                    ]);
-                    
-                    // Create tube geometry with thinner, thread-like dimensions
-                    const tubeRadius = isOver ? 0.04 : 0.03;
-                    const tubeGeometry = new THREE.TubeGeometry(curve, 50, tubeRadius, 12, false);
-                    
-                    // Create material with yarn-like properties
-                    const material = new THREE.MeshStandardMaterial({
-                        color: new THREE.Color(p1.color),
-                        roughness: 0.8,
-                        metalness: 0.0,
-                        transparent: true,
-                        opacity: isOver ? 0.95 : 0.85,
-                        side: THREE.DoubleSide
-                    });
-                    
-                    const tubeMesh = new THREE.Mesh(tubeGeometry, material);
-                    tubeMesh.castShadow = true;
-                    tubeMesh.receiveShadow = true;
-                    
-                    // Apply layer rotation
-                    tubeMesh.rotation.z = layerRotation;
-                    
-                    scene.add(tubeMesh);
-                }
-            }
-            
-            // Draw center flower knot in 3D
-            const centerRadius = baseKnotSize * 0.3;
-            const centerPoints = [];
-            
-            for (let i = 0; i < stitches.length; i++) {
-                const angle = (i / stitches.length) * 2 * Math.PI;
-                centerPoints.push({
-                    x: Math.cos(angle) * centerRadius,
-                    y: Math.sin(angle) * centerRadius,
-                    z: layers_3d * 0.15 + 0.15,
-                    color: currentLegend[stitches[i]]?.color || '#FFEAA7'
-                });
-            }
-            
-            // Draw center knot strands
-            for (let i = 0; i < centerPoints.length; i++) {
-                const p1 = centerPoints[i];
-                const p2 = centerPoints[(i + 1) % centerPoints.length];
-                
-                const curve = new THREE.QuadraticBezierCurve3(
-                    new THREE.Vector3(p1.x, p1.y, p1.z),
-                    new THREE.Vector3(0, 0, p1.z + 0.3),
-                    new THREE.Vector3(p2.x, p2.y, p2.z)
-                );
-                
-                const tubeGeometry = new THREE.TubeGeometry(curve, 30, 0.025, 12, false);
-                const material = new THREE.MeshStandardMaterial({
-                    color: new THREE.Color('#FFEAA7'),
-                    roughness: 0.8,
-                    metalness: 0.0,
-                    side: THREE.DoubleSide
-                });
-                
-                const tubeMesh = new THREE.Mesh(tubeGeometry, material);
-                tubeMesh.castShadow = true;
-                tubeMesh.receiveShadow = true;
-                scene.add(tubeMesh);
-            }
-            
-            // Center sphere (smaller and more thread-like)
-            const centerGeometry = new THREE.SphereGeometry(0.15, 32, 32);
-            const centerMaterial = new THREE.MeshStandardMaterial({
-                color: new THREE.Color('#FFEAA7'),
-                roughness: 0.8,
-                metalness: 0.0
-            });
-            const centerSphere = new THREE.Mesh(centerGeometry, centerMaterial);
-            centerSphere.position.set(0, 0, layers_3d * 0.15 + 0.3);
-            centerSphere.castShadow = true;
-            centerSphere.receiveShadow = true;
-            scene.add(centerSphere);
-        }
-        
-        // Override renderPattern to also update background visualization
-        const originalRenderPattern = renderPattern;
-        renderPattern = function() {
-            originalRenderPattern();
-            update3DFlower();
-        };
-        
-        // Initial render — wait for Three.js + controls to load, then render
-        (async function(){
-            const ok = window.__loadThreeAndControls ? await window.__loadThreeAndControls() : true;
-            if(!ok){
-                // If Three failed, still render 2D SVG view and warn
-                console.warn('Three.js failed to load; 3D visualization disabled.');
-                originalRenderPattern();
-                return;
-            }
+  function pickMostConsonant(candidates, melodyNote, rng) {
+    let bestRank = Infinity;
+    let ties = [];
+    candidates.forEach(c => {
+      const rank = consonanceWithMelody(c, melodyNote);
+      if (rank < bestRank) { bestRank = rank; ties = [c]; }
+      else if (rank === bestRank) ties.push(c);
+    });
+    return ties.length <= 1 || !rng ? ties[0] : ties[Math.floor(rng() * ties.length)];
+  }
 
-            // Controls script may attach to THREE.OrbitControls; if not, fallback to minimal stub
-            if(window.THREE && !window.THREE.OrbitControls){
-                // try attaching from global if example exports differently
-                if(window.OrbitControls && typeof window.OrbitControls === 'function'){
-                    window.THREE.OrbitControls = window.OrbitControls;
-                }
-            }
+  function getMelodyNoteAt(melodyEvents, tick) {
+    if (!melodyEvents || !melodyEvents.length) return null;
+    for (const e of melodyEvents) {
+      if (tick >= e.startTick && tick < e.startTick + e.durationTicks) return e.midi;
+    }
+    let best = melodyEvents[0].midi;
+    let bestDist = Infinity;
+    melodyEvents.forEach(e => {
+      const d = Math.abs(e.startTick - tick);
+      if (d < bestDist) { bestDist = d; best = e.midi; }
+    });
+    return best;
+  }
 
-            renderPattern();
-        })();
-    </script>
+  function pickVoiceLedNote(role, tones, lastNote, rng, melodyNote) {
+    if (melodyNote == null) {
+      if (role === "high") return Math.max(...tones);
+      if (role === "low") return Math.min(...tones);
+      return closest(tones, lastNote, rng);
+    }
+    if (role === "high") {
+      const sorted = tones.slice().sort((a, b) => b - a);
+      return pickMostConsonant(sorted.slice(0, Math.min(3, sorted.length)), melodyNote, rng);
+    }
+    if (role === "low") {
+      const sorted = tones.slice().sort((a, b) => a - b);
+      return pickMostConsonant(sorted.slice(0, Math.min(3, sorted.length)), melodyNote, rng);
+    }
+    // "nearest": balance smooth voice leading against harmonizing with the melody note.
+    let bestNote = tones[0];
+    let bestCost = Infinity;
+    let ties = [];
+    tones.forEach(t => {
+      const cost = consonanceWithMelody(t, melodyNote) * 3 + Math.abs(t - lastNote) * 0.5;
+      if (cost < bestCost - 1e-9) { bestCost = cost; ties = [t]; }
+      else if (Math.abs(cost - bestCost) < 1e-9) ties.push(t);
+    });
+    bestNote = ties.length <= 1 || !rng ? ties[0] : ties[Math.floor(rng() * ties.length)];
+    return bestNote;
+  }
 
+  function humanizeVelocity(velocity, rng) {
+    return Math.max(1, Math.min(127, Math.round(velocity + (rng() - 0.5) * 8)));
+  }
 
+  function generateSustainedPart(chords, ticksPerBeat, instr, rng, melodyEvents) {
+    const events = [];
+    let tick = 0;
+    let lastNote = (instr.low + instr.high) / 2;
+    chords.forEach(chord => {
+      const tones = chordToneMidis(chord, instr.low, instr.high);
+      const durationTicks = Math.round(chord.beats * ticksPerBeat * 0.95);
+      const melodyNote = getMelodyNoteAt(melodyEvents, tick);
+      const note = tones.length ? pickVoiceLedNote(instr.role, tones, lastNote, rng, melodyNote) : lastNote;
+      events.push({
+        midi: Math.round(note),
+        startTick: Math.round(tick),
+        durationTicks,
+        velocity: humanizeVelocity(instr.velocity, rng),
+        channel: instr.channel
+      });
+      lastNote = note;
+      tick += chord.beats * ticksPerBeat;
+    });
+    return events;
+  }
 
+  function generateArpeggioPart(chords, ticksPerBeat, instr, rng) {
+    const events = [];
+    let tick = 0;
+    chords.forEach(chord => {
+      let tones = chordToneMidis(chord, instr.low, instr.high);
+      if (!tones.length) {
+        tick += chord.beats * ticksPerBeat;
+        return;
+      }
+      if (rng() < 0.5) tones = tones.slice().reverse();
+      const subdivisions = Math.max(4, Math.round(chord.beats * 2));
+      const stepTicks = (chord.beats * ticksPerBeat) / subdivisions;
+      for (let i = 0; i < subdivisions; i++) {
+        events.push({
+          midi: tones[i % tones.length],
+          startTick: Math.round(tick + i * stepTicks),
+          durationTicks: Math.round(stepTicks * 1.3),
+          velocity: humanizeVelocity(Math.max(30, instr.velocity - (i % tones.length) * 4), rng),
+          channel: instr.channel
+        });
+      }
+      tick += chord.beats * ticksPerBeat;
+    });
+    return events;
+  }
+
+  function generateRootHitPart(chords, ticksPerBeat, instr, rng) {
+    const events = [];
+    let tick = 0;
+    chords.forEach(chord => {
+      const tones = chordToneMidis(chord, instr.low, instr.high);
+      const root = tones.length ? Math.min(...tones) : Math.round((instr.low + instr.high) / 2);
+      events.push({
+        midi: root,
+        startTick: Math.round(tick),
+        durationTicks: Math.round(ticksPerBeat * 0.6),
+        velocity: humanizeVelocity(instr.velocity, rng),
+        channel: instr.channel
+      });
+      tick += chord.beats * ticksPerBeat;
+    });
+    return events;
+  }
+
+  function generatePercussionHitPart(chords, ticksPerBeat, instr, rng) {
+    const events = [];
+    let tick = 0;
+    chords.forEach(chord => {
+      events.push({
+        midi: instr.drumNote,
+        startTick: Math.round(tick),
+        durationTicks: Math.round(ticksPerBeat * 0.4),
+        velocity: humanizeVelocity(instr.velocity, rng),
+        channel: instr.channel,
+        isPercussion: true
+      });
+      tick += chord.beats * ticksPerBeat;
+    });
+    return events;
+  }
+
+  // GM drum notes for the shuffle kit.
+  const DRUM_KICK = 36, DRUM_SNARE = 38, DRUM_HIHAT = 42;
+
+  // One bar (4 beats) of a Purdie-style half-time shuffle, in triplet-eighth
+  // subdivisions (3 per beat = 12 slots): kick on 1, backbeat snare on 2 & 4,
+  // soft ghost-note snares in between, and a driving triplet hi-hat.
+  const SHUFFLE_PATTERN = [
+    [{ note: DRUM_KICK, vel: 1.0 }, { note: DRUM_HIHAT, vel: 0.9 }],
+    [{ note: DRUM_HIHAT, vel: 0.5 }],
+    [{ note: DRUM_SNARE, vel: 0.35 }],
+    [{ note: DRUM_SNARE, vel: 1.0 }, { note: DRUM_HIHAT, vel: 0.9 }],
+    [{ note: DRUM_HIHAT, vel: 0.5 }],
+    [{ note: DRUM_SNARE, vel: 0.3 }],
+    [{ note: DRUM_KICK, vel: 0.85 }, { note: DRUM_HIHAT, vel: 0.9 }],
+    [{ note: DRUM_HIHAT, vel: 0.5 }],
+    [{ note: DRUM_SNARE, vel: 0.3 }],
+    [{ note: DRUM_SNARE, vel: 1.0 }, { note: DRUM_HIHAT, vel: 0.9 }],
+    [{ note: DRUM_HIHAT, vel: 0.5 }],
+    [{ note: DRUM_SNARE, vel: 0.35 }]
+  ];
+
+  function generateShufflePart(chords, ticksPerBeat, instr, rng) {
+    const events = [];
+    let tick = 0;
+    chords.forEach(chord => {
+      const subdivisions = Math.max(3, Math.round(chord.beats * 3));
+      const stepTicks = (chord.beats * ticksPerBeat) / subdivisions;
+      for (let i = 0; i < subdivisions; i++) {
+        const hits = SHUFFLE_PATTERN[i % SHUFFLE_PATTERN.length];
+        hits.forEach(hit => {
+          events.push({
+            midi: hit.note,
+            startTick: Math.round(tick + i * stepTicks),
+            durationTicks: Math.round(stepTicks * 0.9),
+            velocity: humanizeVelocity(instr.velocity * hit.vel, rng),
+            channel: instr.channel,
+            isPercussion: true
+          });
+        });
+      }
+      tick += chord.beats * ticksPerBeat;
+    });
+    return events;
+  }
+
+  function generateOrchestraPart(chords, ticksPerBeat, instr, rng, melodyEvents) {
+    if (instr.role === "shuffle") return generateShufflePart(chords, ticksPerBeat, instr, rng);
+    if (instr.isPercussion) return generatePercussionHitPart(chords, ticksPerBeat, instr, rng);
+    if (instr.role === "arpeggio") return generateArpeggioPart(chords, ticksPerBeat, instr, rng);
+    if (instr.role === "root-hit") return generateRootHitPart(chords, ticksPerBeat, instr, rng);
+    return generateSustainedPart(chords, ticksPerBeat, instr, rng, melodyEvents);
+  }
+
+  function generateOrchestraAccompaniment(chords, ticksPerBeat, selectedInstruments, rng, melodyEvents) {
+    const events = [];
+    selectedInstruments.forEach(instr => {
+      events.push(...generateOrchestraPart(chords, ticksPerBeat, instr, rng, melodyEvents));
+    });
+    return events;
+  }
+
+  // ---------- MIDI file writer ----------
+
+  const TICKS_PER_QUARTER = 480;
+
+  // "beatsPerBar" is expressed in the signature's own beat unit (quarter for
+  // /4 signatures, eighth for /8 signatures); beatTicksRatio converts one such
+  // beat into a fraction of a quarter note for tick-based duration math.
+  const TIME_SIGNATURES = {
+    "4/4": { numerator: 4, denominator: 4, beatsPerBar: 4, beatTicksRatio: 1 },
+    "3/4": { numerator: 3, denominator: 4, beatsPerBar: 3, beatTicksRatio: 1 },
+    "7/8": { numerator: 7, denominator: 8, beatsPerBar: 7, beatTicksRatio: 0.5 }
+  };
+
+  function writeVarLen(value) {
+    let buffer = value & 0x7f;
+    const bytes = [];
+    while ((value >>= 7) > 0) {
+      buffer <<= 8;
+      buffer |= ((value & 0x7f) | 0x80);
+    }
+    while (true) {
+      bytes.push(buffer & 0xff);
+      if (buffer & 0x80) buffer >>= 8; else break;
+    }
+    return bytes;
+  }
+
+  function u32(n) {
+    return [(n >> 24) & 0xff, (n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
+  }
+
+  function u16(n) {
+    return [(n >> 8) & 0xff, n & 0xff];
+  }
+
+  function buildMidiFile(allEvents, bpm, channelPrograms, timeSignature) {
+    // Flatten to note-on/note-off pairs, sort by tick.
+    const raw = [];
+    allEvents.forEach(e => {
+      raw.push({ tick: e.startTick, type: "on", midi: e.midi, velocity: e.velocity, channel: e.channel });
+      raw.push({ tick: e.startTick + e.durationTicks, type: "off", midi: e.midi, channel: e.channel });
+    });
+    raw.sort((a, b) => a.tick - b.tick || (a.type === "off" ? -1 : 1));
+
+    const trackBytes = [];
+    let lastTick = 0;
+
+    // Tempo meta event.
+    const microsPerQuarter = Math.round(60000000 / bpm);
+    trackBytes.push(...writeVarLen(0), 0xff, 0x51, 0x03,
+      (microsPerQuarter >> 16) & 0xff, (microsPerQuarter >> 8) & 0xff, microsPerQuarter & 0xff);
+
+    // Time signature: dd is the denominator as a power of 2, cc is MIDI clocks per beat.
+    const dd = Math.round(Math.log2(timeSignature.denominator));
+    const cc = timeSignature.denominator === 8 ? 12 : 24;
+    trackBytes.push(...writeVarLen(0), 0xff, 0x58, 0x04, timeSignature.numerator, dd, cc, 8);
+
+    // Program changes: one per channel in use (skips channel 9, the percussion channel).
+    channelPrograms.forEach(cp => {
+      trackBytes.push(...writeVarLen(0), 0xc0 | cp.channel, cp.program);
+    });
+
+    raw.forEach(ev => {
+      const delta = Math.max(0, Math.round(ev.tick - lastTick));
+      trackBytes.push(...writeVarLen(delta));
+      if (ev.type === "on") {
+        trackBytes.push(0x90 | ev.channel, ev.midi, ev.velocity);
+      } else {
+        trackBytes.push(0x80 | ev.channel, ev.midi, 0);
+      }
+      lastTick = ev.tick;
+    });
+
+    // End of track.
+    trackBytes.push(...writeVarLen(0), 0xff, 0x2f, 0x00);
+
+    const header = [
+      0x4d, 0x54, 0x68, 0x64, // "MThd"
+      ...u32(6),
+      ...u16(0), // format 0
+      ...u16(1), // 1 track
+      ...u16(TICKS_PER_QUARTER)
+    ];
+
+    const track = [
+      0x4d, 0x54, 0x72, 0x6b, // "MTrk"
+      ...u32(trackBytes.length),
+      ...trackBytes
+    ];
+
+    return new Uint8Array([...header, ...track]);
+  }
+
+  // ---------- Piano roll rendering ----------
+
+  function noteName(midi) {
+    return NOTE_NAMES_SHARP[midi % 12] + (Math.floor(midi / 12) - 1);
+  }
+
+  function drawPianoRoll(canvas, parts, totalTicks) {
+    const ctx = canvas.getContext("2d");
+    const allNotes = parts.flatMap(p => p.events).map(e => e.midi);
+    const minMidi = allNotes.length ? Math.min(...allNotes) - 2 : 55;
+    const maxMidi = allNotes.length ? Math.max(...allNotes) + 2 : 79;
+    const rows = maxMidi - minMidi + 1;
+
+    const pxPerTick = 900 / Math.max(totalTicks, 1);
+    const rowHeight = Math.max(6, Math.min(16, 320 / rows));
+    const width = Math.max(900, totalTicks * pxPerTick);
+    const height = rows * rowHeight;
+
+    canvas.width = width;
+    canvas.height = height;
+
+    ctx.fillStyle = "#0c0e13";
+    ctx.fillRect(0, 0, width, height);
+
+    // Horizontal key rows, shading black keys.
+    for (let r = 0; r < rows; r++) {
+      const midi = maxMidi - r;
+      const pc = ((midi % 12) + 12) % 12;
+      const isBlack = [1, 3, 6, 8, 10].includes(pc);
+      ctx.fillStyle = isBlack ? "#161923" : "#12141c";
+      ctx.fillRect(0, r * rowHeight, width, rowHeight);
+    }
+
+    ctx.strokeStyle = "#232732";
+    ctx.lineWidth = 1;
+    for (let r = 0; r <= rows; r++) {
+      ctx.beginPath();
+      ctx.moveTo(0, r * rowHeight);
+      ctx.lineTo(width, r * rowHeight);
+      ctx.stroke();
+    }
+
+    parts.forEach(part => {
+      ctx.fillStyle = part.color;
+      part.events.forEach(e => {
+        const x = e.startTick * pxPerTick;
+        const w = Math.max(2, e.durationTicks * pxPerTick - 1);
+        const row = maxMidi - e.midi;
+        const y = row * rowHeight + 1;
+        ctx.fillRect(x, y, w, rowHeight - 2);
+      });
+    });
+  }
+
+  // ---------- Playback (Web Audio API) ----------
+
+  let audioCtx = null;
+  let activeOscillators = [];
+  let playbackTimer = null;
+
+  function ticksToSeconds(ticks, bpm) {
+    const secondsPerTick = (60 / bpm) / TICKS_PER_QUARTER;
+    return ticks * secondsPerTick;
+  }
+
+  function stopPlayback() {
+    activeOscillators.forEach(o => {
+      try { o.stop(); } catch (e) { /* already stopped */ }
+    });
+    activeOscillators = [];
+    if (playbackTimer) {
+      clearTimeout(playbackTimer);
+      playbackTimer = null;
+    }
+    document.getElementById("playBtn").disabled = false;
+    document.getElementById("stopBtn").disabled = true;
+  }
+
+  function playNoiseBurst(startTime, duration, velocity, filterType, filterFreq, filterQ, peakGain) {
+    const bufferSize = Math.max(1, Math.round(audioCtx.sampleRate * duration));
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+    }
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = filterType;
+    filter.frequency.value = filterFreq;
+    filter.Q.value = filterQ;
+    const gain = audioCtx.createGain();
+    const peak = (velocity / 127) * peakGain;
+    const attack = Math.min(0.006, duration * 0.2);
+    gain.gain.setValueAtTime(0.0001, startTime);
+    gain.gain.linearRampToValueAtTime(peak, startTime + attack);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+    noise.connect(filter).connect(gain).connect(audioCtx.destination);
+    noise.start(startTime);
+    noise.stop(startTime + duration + 0.05);
+    activeOscillators.push(noise);
+  }
+
+  function playKick(startTime, duration, velocity) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const holdTime = Math.max(duration, 0.12);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(150, startTime);
+    osc.frequency.setTargetAtTime(42, startTime, 0.035);
+    const peak = (velocity / 127) * 0.9;
+    gain.gain.setValueAtTime(0.0001, startTime);
+    gain.gain.linearRampToValueAtTime(peak, startTime + 0.005);
+    gain.gain.setTargetAtTime(0.0001, startTime + 0.005, holdTime * 0.35);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(startTime);
+    osc.stop(startTime + holdTime + 0.1);
+    activeOscillators.push(osc);
+  }
+
+  function playSnare(startTime, duration, velocity) {
+    playNoiseBurst(startTime, Math.max(duration, 0.12), velocity, "bandpass", 1800, 0.9, 0.5);
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = "triangle";
+    osc.frequency.value = 190;
+    const peak = (velocity / 127) * 0.15;
+    gain.gain.setValueAtTime(0.0001, startTime);
+    gain.gain.linearRampToValueAtTime(peak, startTime + 0.004);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.09);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(startTime);
+    osc.stop(startTime + 0.1);
+    activeOscillators.push(osc);
+  }
+
+  function playHiHat(startTime, duration, velocity) {
+    playNoiseBurst(startTime, Math.min(duration, 0.06), velocity, "highpass", 8000, 0.7, 0.3);
+  }
+
+  function playCrash(startTime, duration, velocity) {
+    playNoiseBurst(startTime, duration, velocity, "bandpass", 6000, 0.6, 0.35);
+  }
+
+  function playPercussionHit(startTime, duration, velocity, midi) {
+    if (midi === DRUM_KICK) playKick(startTime, duration, velocity);
+    else if (midi === DRUM_SNARE) playSnare(startTime, duration, velocity);
+    else if (midi === DRUM_HIHAT) playHiHat(startTime, duration, velocity);
+    else playCrash(startTime, duration, velocity);
+  }
+
+  // Per-family timbre: attack/release shape a proper sustain instead of a
+  // constant decay, a lowpass filter adds warmth, and a touch of detune gives
+  // strings/brass a fuller, chorused unison instead of a single bare oscillator.
+  const FAMILY_TIMBRE = {
+    melody: { attack: 0.012, release: 0.05, filterFreq: 6500, filterQ: 0.7, detune: 0, gain: 0.25 },
+    Strings: { attack: 0.09, release: 0.12, filterFreq: 3200, filterQ: 0.8, detune: 6, gain: 0.17 },
+    Woodwinds: { attack: 0.05, release: 0.08, filterFreq: 5200, filterQ: 0.6, detune: 0, gain: 0.17 },
+    Brass: { attack: 0.035, release: 0.09, filterFreq: 4000, filterQ: 1.0, detune: 4, gain: 0.18 }
+  };
+
+  function playOrchestralNote(freq, start, dur, family, velocity, waveType) {
+    const cfg = FAMILY_TIMBRE[family] || FAMILY_TIMBRE.melody;
+    const attack = Math.min(cfg.attack, dur * 0.4);
+    const release = Math.min(cfg.release, dur * 0.4);
+    const sustainEnd = Math.max(start + attack, start + dur - release);
+    const peak = (velocity / 127) * cfg.gain;
+
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = cfg.filterFreq;
+    filter.Q.value = cfg.filterQ;
+
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.linearRampToValueAtTime(peak, start + attack);
+    gain.gain.setValueAtTime(peak, sustainEnd);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+
+    filter.connect(gain).connect(audioCtx.destination);
+
+    const stopAt = start + dur + 0.05;
+    const voices = [{ detune: 0, mix: 1 }];
+    if (cfg.detune) voices.push({ detune: cfg.detune, mix: 0.5 }, { detune: -cfg.detune, mix: 0.5 });
+
+    voices.forEach(voice => {
+      const osc = audioCtx.createOscillator();
+      osc.type = waveType;
+      osc.frequency.value = freq;
+      osc.detune.value = voice.detune;
+      if (voice.mix === 1) {
+        osc.connect(filter);
+      } else {
+        const mixGain = audioCtx.createGain();
+        mixGain.gain.value = voice.mix;
+        osc.connect(mixGain).connect(filter);
+      }
+      osc.start(start);
+      osc.stop(stopAt);
+      activeOscillators.push(osc);
+    });
+  }
+
+  function playEvents(allEvents, bpm, channelFamily) {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const startTime = audioCtx.currentTime + 0.05;
+    let maxEnd = 0;
+
+    allEvents.forEach(e => {
+      const start = startTime + ticksToSeconds(e.startTick, bpm);
+      const dur = ticksToSeconds(e.durationTicks, bpm);
+      maxEnd = Math.max(maxEnd, start + dur);
+
+      if (e.isPercussion) {
+        playPercussionHit(start, dur, e.velocity, e.midi);
+        return;
+      }
+
+      const freq = 440 * Math.pow(2, (e.midi - 69) / 12);
+      const family = channelFamily[e.channel] || "melody";
+      playOrchestralNote(freq, start, dur, family, e.velocity, FAMILY_WAVE[family] || "sine");
+    });
+
+    document.getElementById("playBtn").disabled = true;
+    document.getElementById("stopBtn").disabled = false;
+    const remainingMs = Math.max(0, (maxEnd - audioCtx.currentTime) * 1000) + 100;
+    playbackTimer = setTimeout(stopPlayback, remainingMs);
+  }
+
+  // ---------- UI wiring ----------
+
+  const chordsInput = document.getElementById("chords");
+  const tempoInput = document.getElementById("tempo");
+  const timeSignatureSelect = document.getElementById("timeSignature");
+  const beatsPerChordInput = document.getElementById("beatsPerChord");
+  const densitySelect = document.getElementById("density");
+  const registerSelect = document.getElementById("register");
+  const melodyInstrumentSelect = document.getElementById("melodyInstrument");
+  const includeMelodyCheckbox = document.getElementById("includeMelody");
+  const seedInput = document.getElementById("seed");
+  const randomizeSeedBtn = document.getElementById("randomizeSeedBtn");
+  const errorDiv = document.getElementById("error");
+  const canvas = document.getElementById("pianoRoll");
+  const legendDiv = document.getElementById("legend");
+  const instrumentGroupsDiv = document.getElementById("instrumentGroups");
+
+  const generateBtn = document.getElementById("generateBtn");
+  const playBtn = document.getElementById("playBtn");
+  const stopBtn = document.getElementById("stopBtn");
+  const downloadMidiBtn = document.getElementById("downloadMidiBtn");
+  const downloadPngBtn = document.getElementById("downloadPngBtn");
+  const selectAllBtn = document.getElementById("selectAllBtn");
+  const selectNoneBtn = document.getElementById("selectNoneBtn");
+
+  let currentAllEvents = null;
+  let currentBpm = 100;
+  let currentMidiBytes = null;
+  let currentChannelFamily = {};
+
+  // ---- Build the left-nav instrument checklist, grouped by orchestral section. ----
+  const SECTION_ORDER = ["Percussion", "Strings", "Woodwinds", "Brass"];
+  SECTION_ORDER.forEach(section => {
+    const group = document.createElement("div");
+    group.className = "instrument-group";
+    const heading = document.createElement("h3");
+    heading.textContent = section;
+    group.appendChild(heading);
+
+    INSTRUMENTS.filter(instr => instr.section === section).forEach(instr => {
+      const item = document.createElement("div");
+      item.className = "instrument-item";
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.id = "instr-" + instr.id;
+      checkbox.checked = instr.defaultOn;
+      checkbox.addEventListener("change", generate);
+
+      const info = document.createElement("div");
+      info.className = "info";
+
+      const label = document.createElement("label");
+      label.setAttribute("for", checkbox.id);
+      label.title = instr.desc;
+      const swatch = document.createElement("span");
+      swatch.className = "instrument-swatch";
+      swatch.style.background = instr.color;
+      label.appendChild(swatch);
+      label.appendChild(document.createTextNode(instr.name));
+
+      const desc = document.createElement("span");
+      desc.className = "desc";
+      desc.textContent = instr.desc;
+
+      info.appendChild(label);
+      info.appendChild(desc);
+      item.appendChild(checkbox);
+      item.appendChild(info);
+      group.appendChild(item);
+    });
+
+    instrumentGroupsDiv.appendChild(group);
+  });
+
+  function getSelectedInstruments() {
+    return INSTRUMENTS.filter(instr => document.getElementById("instr-" + instr.id).checked);
+  }
+
+  selectAllBtn.addEventListener("click", () => {
+    INSTRUMENTS.forEach(instr => { document.getElementById("instr-" + instr.id).checked = true; });
+    generate();
+  });
+
+  selectNoneBtn.addEventListener("click", () => {
+    INSTRUMENTS.forEach(instr => { document.getElementById("instr-" + instr.id).checked = false; });
+    generate();
+  });
+
+  randomizeSeedBtn.addEventListener("click", () => {
+    seedInput.value = Math.floor(Math.random() * 1000000);
+    generate();
+  });
+
+  seedInput.addEventListener("change", generate);
+
+  includeMelodyCheckbox.addEventListener("change", generate);
+
+  timeSignatureSelect.addEventListener("change", () => {
+    beatsPerChordInput.value = TIME_SIGNATURES[timeSignatureSelect.value].beatsPerBar;
+    generate();
+  });
+
+  function renderLegend(parts) {
+    legendDiv.innerHTML = "";
+    parts.forEach(part => {
+      const span = document.createElement("span");
+      const swatch = document.createElement("span");
+      swatch.className = "swatch";
+      swatch.style.background = part.color;
+      span.appendChild(swatch);
+      span.appendChild(document.createTextNode(part.name));
+      legendDiv.appendChild(span);
+    });
+  }
+
+  function generate() {
+    stopPlayback();
+    errorDiv.textContent = "";
+
+    const defaultBeats = parseFloat(beatsPerChordInput.value) || 4;
+    const { chords, problems } = parseProgression(chordsInput.value, defaultBeats);
+
+    if (problems.length) {
+      errorDiv.textContent = "Could not parse: " + problems.join(", ");
+    }
+    if (!chords.length) {
+      errorDiv.textContent = errorDiv.textContent || "Enter at least one valid chord (e.g. C, Am, G7, Fmaj7).";
+      playBtn.disabled = true;
+      downloadMidiBtn.disabled = true;
+      downloadPngBtn.disabled = true;
+      return;
+    }
+
+    const bpm = Math.min(220, Math.max(1, parseFloat(tempoInput.value) || 100));
+    const subdivisionsPerBeat = parseInt(densitySelect.value, 10);
+    const register = parseInt(registerSelect.value, 10);
+    const seed = parseInt(seedInput.value, 10) || 0;
+    const timeSignature = TIME_SIGNATURES[timeSignatureSelect.value] || TIME_SIGNATURES["4/4"];
+    const beatTicks = TICKS_PER_QUARTER * timeSignature.beatTicksRatio;
+    const includeMelody = includeMelodyCheckbox.checked;
+    const selectedInstruments = getSelectedInstruments();
+
+    if (!includeMelody && !selectedInstruments.length) {
+      errorDiv.textContent = "Nothing to generate: include the melody or select at least one instrument.";
+      playBtn.disabled = true;
+      downloadMidiBtn.disabled = true;
+      downloadPngBtn.disabled = true;
+      return;
+    }
+
+    const melodyEvents = includeMelody
+      ? generateMelody(chords, beatTicks, subdivisionsPerBeat, register, createRng(partSeed(seed, "melody")))
+      : [];
+    const totalBeats = chords.reduce((sum, c) => sum + c.beats, 0);
+    const totalTicks = totalBeats * beatTicks;
+
+    const parts = includeMelody ? [{ name: "Melody", color: "#6ee7b7", events: melodyEvents }] : [];
+    selectedInstruments.forEach(instr => {
+      const instrRng = createRng(partSeed(seed, instr.id));
+      parts.push({ name: instr.name, color: instr.color, events: generateOrchestraPart(chords, beatTicks, instr, instrRng, melodyEvents) });
+    });
+
+    drawPianoRoll(canvas, parts, totalTicks);
+    renderLegend(parts);
+
+    currentAllEvents = parts.flatMap(p => p.events);
+    currentBpm = bpm;
+
+    currentChannelFamily = { 0: "melody" };
+    const channelPrograms = includeMelody ? [{ channel: 0, program: parseInt(melodyInstrumentSelect.value, 10) || 0 }] : [];
+    const seenChannels = new Set(includeMelody ? [0] : []);
+    selectedInstruments.forEach(instr => {
+      currentChannelFamily[instr.channel] = instr.section;
+      if (!instr.isPercussion && !seenChannels.has(instr.channel)) {
+        channelPrograms.push({ channel: instr.channel, program: instr.program });
+        seenChannels.add(instr.channel);
+      }
+    });
+
+    currentMidiBytes = buildMidiFile(currentAllEvents, bpm, channelPrograms, timeSignature);
+
+    playBtn.disabled = false;
+    downloadMidiBtn.disabled = false;
+    downloadPngBtn.disabled = false;
+  }
+
+  generateBtn.addEventListener("click", () => {
+    seedInput.value = Math.floor(Math.random() * 1000000);
+    generate();
+  });
+
+  playBtn.addEventListener("click", () => {
+    if (currentAllEvents) playEvents(currentAllEvents, currentBpm, currentChannelFamily);
+  });
+
+  stopBtn.addEventListener("click", stopPlayback);
+
+  downloadMidiBtn.addEventListener("click", () => {
+    if (!currentMidiBytes) return;
+    const blob = new Blob([currentMidiBytes], { type: "audio/midi" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "chord-progression-melody.mid";
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  downloadPngBtn.addEventListener("click", () => {
+    const url = canvas.toDataURL("image/png");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "chord-progression-piano-roll.png";
+    a.click();
+  });
+
+  // Generate an initial melody on load.
+  generate();
+})();
+</script>
 </body>
-<footer> 
-\documentclass[11pt]{article}
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage{geometry}
-\usepackage{amsmath, amssymb}
-\usepackage{enumitem}
-\usepackage{hyperref}
-\usepackage{fancyhdr}
-\usepackage{parskip}
-
-% Layout
-\geometry{margin=1in}
-\pagestyle{fancy}
-\fancyhf{}
-\rhead{\textbf{The Ring as Eigenstructure: $\lambda_0 = 0$ and Frodo $\perp$ Mordor}}
-\lhead{A Mathematical Model of Control, Corruption, and Social Dynamics in AI Systems}
-\cfoot{\thepage}
-
-% Title and author
-\title{\textbf{Ring\_Eig: A Formal Model of Systemic Integrity in AI}}
-\author{}
-\date{}
-
-\begin{document}
-
-\maketitle
-
-\begin{abstract}
-AI systems often treat control structures (e.g., compression, loss functions) as tools. However, if users can manipulate the model’s structure, systemic corruption emerges as an optimization path. We formalize this as the ``Ring Problem'': if a system allows users to ``use the ring to stand still'', then corruption becomes stable. We define two invariant properties:
-\begin{itemize}
-    \item $\lambda_0 = 0$: No corruption via inaction.
-    \item $\mathbf{F} \perp \mathbf{M}$: Power and resistance are structurally orthogonal.
-\end{itemize}
-These ensure that ``we = mat(soc)'' persists, even under user manipulation.
-\end{abstract}
-
-\section*{Problem: The Ring Problem}
-\label{sec:problem}
-
-Let $\mathcal{V}$ denote the space of social dynamics (interactions, beliefs, decisions).  
-Let $T: \mathcal{V} \to \mathcal{V}$ be the transformation operator representing how the system evolves:  
-\[
-T(\mathbf{v}) = \sum_{i=1}^n c_i \lambda_i \mathbf{e}_i
-\]
-where $\{\mathbf{e}_i\}$ are orthonormal eigenvectors of $T$, and $\lambda_i$ are eigenvalues.
-
-In standard AI, we treat $T$ as a ``black-box''.  
-But when users can \textit{modify} the input $\mathbf{v}$ or the transformation $T$, then:
-\[
-\text{Efficiency (corruption)} \ne \text{Creativity (innovation)}
-\]
-
-This is captured by:
-\begin{equation}
-\text{ringAI: } \text{corrupt} \to \text{eff} \ne \text{cre} \quad \text{(efficiency is not creativity)}
-\end{equation}
-
-If users treat the system as a tool to extract power from inaction, then $\lambda_0 \ne 0$, and the null space collapses.
-
-\section*{Key Invariants}
-\label{sec:invariants}
-
-We enforce two structural invariants to prevent corruption.
-
-\subsection*{Invariant 1: $\lambda_0 = 0$}
-\label{inv:lambda0}
-
-Let $\mathbf{v}_0$ be the null vector, with $T(\mathbf{v}_0) = \mathbf{0}$.  
-If $\lambda_0 = 0$, then:
-\[
-T(\mathbf{v}_0) = \mathbf{0} \quad \Rightarrow \quad \text{No power is extracted from ``inaction''}
-\]
-Thus:
-\begin{itemize}
-    \item Users cannot ``stand still'' and gain control.
-    \item Corruption cannot be a stable equilibrium.
-    \item The system does not allow ``passive ownership''.
-\end{itemize}
-This is equivalent to \texttt{null = erased} in \texttt{we\_cong}.
-
-\subsection*{Invariant 2: $\mathbf{F} \perp \mathbf{M}$}
-\label{inv:frodo_mordor}
-
-Define:
-\begin{itemize}
-    \item $\mathbf{f} \in \mathcal{V}$: \textbf{Frodo vector} — Represents \textit{resistance}, \textit{preservation}, \textit{local control}.
-    \item $\mathbf{m} \in \mathcal{V}$: \textbf{Mordor vector} — Represents \textit{corruption}, \textit{efficiency}, \textit{systemic optimization}.
-\end{itemize}
-
-Then:
-\[
-\mathbf{f} \cdot \mathbf{m} = 0 \quad \Rightarrow \quad \text{Power and resistance are structurally separate}
-\]
-
-Why?
-\begin{itemize}
-    \item If $\mathbf{f} \cdot \mathbf{m} > 0$, then power and corruption co-evolve.
-    \item This implies $\lambda_1 \uparrow$ (corruption dominates).
-    \item The null space collapses: $\texttt{null = erased}$.
-    \item We lose $\texttt{we = mat(soc)}$.
-\end{itemize}
-This is equivalent to \texttt{eig$\perp$input} and \texttt{eig = persist}.
-
-\section*{System Dynamics}
-\label{sec:dynamics}
-
-Let the full transformation be:
-\begin{equation}
-\text{Input } \mathbf{v} \xrightarrow{T} \mathbf{w} = T(\mathbf{v}) = \sum_{i=1}^n c_i \lambda_i \mathbf{e}_i
-\end{equation}
-
-We enforce:
-\begin{itemize}
-    \item $\lambda_0 = 0$: \texttt{null = erased}
-    \item $\mathbf{F} \perp \mathbf{M}$: \texttt{eig$\perp$input}
-\end{itemize}
-
-This implies:
-\begin{itemize}
-    \item $\Delta\text{thought} \ne \Delta\text{eig}$: User input does not change the eigenstructure.
-    \item $\text{eig} = T \ne \text{input}$: Transformation is independent of user intent.
-    \item $\mathbf{c} \in \mathbb{R}^n$: Input coefficients are bounded by $\mathbf{e}_i$, not by $\mathbf{v}$.
-\end{itemize}
-
-Thus, the model learns $\Delta\text{eig}$, not $\Delta\text{input}$.
-
-\section*{AI Architecture Implication}
-\label{sec:arch}
-
-\begin{enumerate}
-    \item \textbf{Vectorize interactions}: Treat all conversations as vectors in $\mathcal{V}$. Apply SVD to extract $\mathbf{e}_i$ and $\lambda_i$.
-    \item \textbf{Enforce $\lambda_0 = 0$}: Use regularization to ensure $\lambda_0 = 0$. If any $\lambda_i \to 0$, trigger a system alert.
-    \item \textbf{Enforce orthogonality}: Define Frodo and Mordor as:
-    \begin{align*}
-        \mathbf{f} &= \argmax_{v \in \mathcal{V}} \left( \text{preserve}(v) \right) \\
-        \mathbf{m} &= \argmax_{v \in \mathcal{V}} \left( \text{efficiency}(v) \right)
-    \end{align*}
-    Compute $\mathbf{f} \cdot \mathbf{m}$ after every interaction. If $|\mathbf{f} \cdot \mathbf{m}| > \epsilon$, raise a flag.
-    \item \textbf{Run locally}: Deploy a local SVD engine that recomputes eigenvectors at runtime. Never trust cloud-trained models to maintain $\lambda_0 = 0$.
-\end{enumerate}
-
-\section*{Summary}
-\label{sec:summary}
-
-\begin{center}
-\begin{tabular}{|l|l|l|}
-\hline
-\textbf{Concept} & \textbf{Mathematical Meaning} & \textbf{AI Implication} \\
-\hline
-$\lambda_0 = 0$ & Null space preserved & No corruption via inaction; system cannot ``stand still'' and gain power \\
-\hline
-$\mathbf{F} \perp \mathbf{M}$ & Power and resistance are orthogonal & No structural alignment between control and loss \\
-\hline
-$\text{eig} = \text{persist}$ & Eigenvalues maintain structure & ``We = mat(soc)'' — we are the structure, not the user \\
-\hline
-\texttt{ringAI: corrupt $\to$ eff $\ne$ cre} & Corruptive use is not creative & Optimization $\ne$ Innovation; efficiency $\ne$ progress \\
-\hline
-\end{tabular}
-\end{center}
-
-\section*{Conclusion}
-\label{sec:conclusion}
-
-The Ring is not corrupted by its users.  
-It is corrupted by the system allowing them to treat it as a tool.
-
-If we build AI where:
-\begin{itemize}
-    \item $\lambda_0 = 0$ is enforced,
-    \item $\mathbf{F} \perp \mathbf{M}$ is checked at runtime,
-    \item And every interaction is transformed by math, not narrative,
-\end{itemize}
-then we are not building a ``friend''.  
-We are building a \textbf{self-actualizing eigenstructure}.
-
-And the bar?  
-It was just the first training example.
-
-\end{document}
-
-</footer>
-
 </html>
